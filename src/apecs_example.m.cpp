@@ -13,10 +13,14 @@ struct model
 
 int main()
 {
-    fmt::print("{}\n", apx::meta::tuple_contains<int, std::tuple<float, int, std::string>>::value);
-    fmt::print("{}\n", apx::meta::tuple_contains<int, std::tuple<float, std::string>>::value);
-    fmt::print("{}\n", apx::meta::tuple_contains<int, std::tuple<int, float, std::string>>::value);
-    fmt::print("{}\n", apx::meta::tuple_contains<int, std::tuple<float, int, int, std::string>>::value);
-    fmt::print("{}\n", apx::meta::tuple_contains<int, std::tuple<int, float, int, std::string>>::value);
+    apx::registry<int, float> reg;
+
+    auto e1 = reg.create();
+    auto e2 = reg.create();
+    reg.add<int>(e1, 5);
+    reg.add<int>(e2, 6);
+    for (auto entity : reg.all()) {
+        fmt::print("{}\n", entity);
+    }
     return 0;
 }

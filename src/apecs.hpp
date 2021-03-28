@@ -242,12 +242,14 @@ class registry
     template <typename Comp>
     void remove(apx::entity entity, apx::sparse_set<Comp>& component_set)
     {
-        fmt::print("Removing {}\n", __FUNCSIG__);
         component_set.erase_if_exists(apx::to_index(entity));
     }
 
     template <typename Comp>
-    using tuple_contains_v = apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value;
+    apx::sparse_set<Comp>& get_component_set()
+    {
+        return std::get<apx::sparse_set<Comp>>(d_components);
+    }
 
 public:
     ~registry()
@@ -296,48 +298,68 @@ public:
         }
         d_entities.clear();
         d_pool.clear();
-        std::swap(d_components, tuple_type{});
+        apx::meta::for_each(d_components, [](auto& comp_list) {
+            comp_list.clear();
+        });
     }
 
     template <typename Comp>
     Comp& add(apx::entity entity, const Comp& component)
     {
-        static_assert(tuple_contains_v<Comp>);
+        static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
         assert(valid(entity));
 
-        auto& comp_set = std::get<apx::sparse_set<Comp>>(d_components);
+        auto& comp_set = std::get<apx::sparse_set<Comp>>();
         return comp_set.insert(apx::to_index(entity), component);
     }
 
     template <typename Comp>
     void remove(apx::entity entity)
     {
-        static_assert(tuple_contains_v<Comp>);
+        static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
         assert(valid(entity));
         
-        auto& comp_set = std::get<apx::sparse_set<Comp>>(d_components);
+        auto& comp_set = get_component_set<Comp>();
         return remove(entity, comp_set);
     }
 
     template <typename Comp>
     bool has(apx::entity entity)
     {
-        static_assert(tuple_contains_v<Comp>);
+        static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
         assert(valid(entity));
 
-        auto& comp_set = std::get<apx::sparse_set<Comp>>(d_components);
+        auto& comp_set = get_component_set<Comp>();
         return comp_set.has(apx::to_index(entity));
     }
 
     template <typename Comp>
     Comp& get(apx::entity entity)
     {
-        static_assert(tuple_contains_v<Comp>);
+        static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
         assert(valid(entity));
         assert(has<Comp>(entity));
 
-        auto& comp_set = std::get<apx::sparse_set<Comp>>(d_components);
+        auto& comp_set = get_component_set<Comp>();
         return comp_set[apx::to_index(entity)];
+    }
+
+    cppcoro::generator<apx::entity> all()
+    {
+        for (auto [index, entity] : d_entities.fast()) {
+            co_yield entity;
+        }
+    }
+
+    template <typename T, typename... Ts>
+    cppcoro::generator<apx::entity> view()
+    {
+        for (auto [index, component] : get_component_set<T>().fast()) {
+            apx::entity = d_entities[index];
+            if ((has<Ts>(entity) && ...)) {
+                co_yield entity;
+            }
+        }
     }
 };
 
