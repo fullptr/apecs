@@ -21,30 +21,31 @@ struct Mesh
   std::vector<Vertex> vertices;
 };
 
-apx::registry<Transform, Mesh, Light, Sound> reg;
+int main() {
+  apx::registry<Transform, Mesh, Light, Sound> reg;
 
-auto e = reg.create(); // Create a new entity
+  auto e = reg.create(); // Create a new entity
 
-Transform t{{0, 0, 0}, {0, 0, 0, 1}, {2, 2, 2}};
-reg.add<Transform>(e, t); // Add components
+  Transform t{{0, 0, 0}, {0, 0, 0, 1}, {2, 2, 2}};
+  reg.add<Transform>(e, t); // Add components
 
-if (reg.has<Transform>(e)) { // Check if components exist
-  auto& position = reg.get<Transform>(e).position; // Get components
-  reg.remove<Transform>(e); // Remove components
+  if (reg.has<Transform>(e)) { // Check if components exist
+    auto& position = reg.get<Transform>(e).position; // Get components
+    reg.remove<Transform>(e); // Remove components
+  }
+
+  for (auto entity : reg.view<Mesh>()) { // Loop over entities that have a particular component
+    render(entity);
+  }
+
+  for (auto entity : reg.view<Transform, Light>()) { // Multi-component views
+    light_scene(entity);
+  }
+
+  for (auto entity : reg.all()) { // Loop over everything
+    log(entity);
+  }
+
+  reg.destroy(e); // Delete an entity and all of its components.
 }
-
-for (auto entity : reg.view<Mesh>()) { // Loop over entities that have a particular component
-  render(entity);
-}
-
-for (auto entity : reg.view<Transform, Light>()) { // Multi-component views
-  light_scene(entity);
-}
-
-for (auto entity : reg.all()) { // Loop over everything
-  log(entity);
-}
-
-reg.destroy(e); // Delete an entity and all of its components.
-
 ```
