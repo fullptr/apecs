@@ -8,7 +8,7 @@ result in reordering, but really you shouldn't be relying on components being in
 This also relies on cppcoro, as all views and iteration is implmented using generators built on top of C++20 coroutines.
 
 ## Example
-```
+```cpp
 struct Transform
 {
   glm::vec3 position;
