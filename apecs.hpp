@@ -119,8 +119,7 @@ template <typename T>
 class generator_iterator
 {
 public:
-    using promise_type = generator_promise<T>;
-    using value_type = typename promise_type::value_type;
+    using value_type = typename generator<T>::value_type;
 
     using iterator_category = std::input_iterator_tag;
     using difference_type = std::ptrdiff_t;
