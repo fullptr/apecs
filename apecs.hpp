@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <cassert>
 
-#include <fmt/format.h>
 #include <cppcoro/generator.hpp>
 
 namespace apx {
@@ -14,17 +13,17 @@ namespace meta {
 template <typename T, typename Tuple>
 struct tuple_contains;
 
-template <typename T, typename U, typename... Ts>
-struct tuple_contains<T, std::tuple<U, Ts...>> : tuple_contains<T, std::tuple<Ts...>> {};
+template <typename T>
+struct tuple_contains<T, std::tuple<>> : std::false_type {};
 
 template <typename T, typename... Ts>
 struct tuple_contains<T, std::tuple<T, Ts...>> : std::true_type {};
 
-template <typename T>
-struct tuple_contains<T, std::tuple<>> : std::false_type {};
+template <typename T, typename U, typename... Ts>
+struct tuple_contains<T, std::tuple<U, Ts...>> : tuple_contains<T, std::tuple<Ts...>> {};
 
 template <typename T, typename Tuple>
-using tuple_contains_v = tuple_contains<T, Tuple>::value;
+inline constexpr bool tuple_contains_v = tuple_contains<T, Tuple>::value;
 
 template <class Tuple, class F>
 constexpr void for_each(Tuple&& tuple, F&& f)
