@@ -7,6 +7,37 @@
 #include <coroutine>
 
 namespace apx {
+namespace meta {
+
+template <typename T, typename Tuple>
+struct tuple_contains;
+
+template <typename T>
+struct tuple_contains<T, std::tuple<>> : std::false_type {};
+
+template <typename T, typename... Ts>
+struct tuple_contains<T, std::tuple<T, Ts...>> : std::true_type {};
+
+template <typename T, typename U, typename... Ts>
+struct tuple_contains<T, std::tuple<U, Ts...>> : tuple_contains<T, std::tuple<Ts...>> {};
+
+template <typename T, typename Tuple>
+inline constexpr bool tuple_contains_v = tuple_contains<T, Tuple>::value;
+
+template <class Tuple, class F>
+constexpr void for_each(Tuple&& tuple, F&& f)
+{
+    [] <std::size_t... I> (Tuple&& tuple, F&& f, std::index_sequence<I...>)
+    {
+        (f(std::get<I>(tuple)), ...);
+    }(
+        std::forward<Tuple>(tuple),
+        std::forward<F>(f),
+        std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>{}
+    );
+}
+
+}
 
 template <typename T> class generator;
 template <typename T> class generator_iterator;
@@ -157,38 +188,6 @@ public:
         return std::addressof(operator*());
     }
 };
-
-namespace meta {
-
-template <typename T, typename Tuple>
-struct tuple_contains;
-
-template <typename T>
-struct tuple_contains<T, std::tuple<>> : std::false_type {};
-
-template <typename T, typename... Ts>
-struct tuple_contains<T, std::tuple<T, Ts...>> : std::true_type {};
-
-template <typename T, typename U, typename... Ts>
-struct tuple_contains<T, std::tuple<U, Ts...>> : tuple_contains<T, std::tuple<Ts...>> {};
-
-template <typename T, typename Tuple>
-inline constexpr bool tuple_contains_v = tuple_contains<T, Tuple>::value;
-
-template <class Tuple, class F>
-constexpr void for_each(Tuple&& tuple, F&& f)
-{
-    [] <std::size_t... I> (Tuple&& tuple, F&& f, std::index_sequence<I...>)
-    {
-        (f(std::get<I>(tuple)), ...);
-    }(
-        std::forward<Tuple>(tuple),
-        std::forward<F>(f),
-        std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>{}
-    );
-}
-
-}
 
 template <typename value_type>
 class sparse_set

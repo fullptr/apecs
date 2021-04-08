@@ -1,4 +1,3 @@
-#include "examples/sparse_set.hpp"
 #include "apecs.hpp"
 
 #include <iostream>
