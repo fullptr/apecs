@@ -1,6 +1,7 @@
 #include "apecs.hpp"
 #include "examples/meta.hpp"
 #include "examples/sparse_set.hpp"
+#include "examples/generator.hpp"
 
 #include <iostream>
 
@@ -14,6 +15,10 @@ int main()
 
     std::cout << "Example 2: Sparse set\n";
     examples::sparse_set();
+    std::cout << "\n";
+
+    std::cout << "Example 3: Generator\n";
+    examples::generator();
     std::cout << "\n";
 
     return 0;
