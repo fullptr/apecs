@@ -1,11 +1,15 @@
 # apecs
-A tiny entity component system. API is similar to Entt, but all component types must be declared up front. This allows for the internals
-to be implemented without type erase, instead relying on variadic templates; which learning more of was the reason for making this. Components
-are stored in `apx::sparse_set` objects, which are essentially a pair of `std::vector`s, one sparse and one packed, which allows for index lookup
-as well as tighly packed components. When deleting components, the interals may suffle elements around to keep the array densely packed. This does
-result in reordering, but really you shouldn't be relying on components being in any particular order.
+A tiny entity component system. API is similar to Entt, but all component types must be declared
+up front. This allows for the internals to be implemented without type erase, instead relying on
+variadic templates; which learning more of was the reason for making this. Components are stored
+in `apx::sparse_set` objects, which are essentially a pair of `std::vector`s, one sparse and one
+packed, which allows for index lookup as well as tighly packed components. When deleting
+components, the interals may suffle elements around to keep the array densely packed. This does
+result in reordering, but really you shouldn't be relying on components being in any particular
+order.
 
-This also relies on cppcoro, as all views and iteration is implmented using generators built on top of C++20 coroutines.
+This is a single header file that can be placed in your own project. It has no dependencies
+itself. The tests however require GTest to run.
 
 ## Example
 ```cpp
