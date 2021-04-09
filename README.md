@@ -1,15 +1,23 @@
-# apecs
-A tiny entity component system. API is similar to Entt, but all component types must be declared
-up front. This allows for the internals to be implemented without type erase, instead relying on
-variadic templates; which learning more of was the reason for making this. Components are stored
-in `apx::sparse_set` objects, which are essentially a pair of `std::vector`s, one sparse and one
-packed, which allows for index lookup as well as tighly packed components. When deleting
-components, the interals may suffle elements around to keep the array densely packed. This does
-result in reordering, but really you shouldn't be relying on components being in any particular
-order.
+# apecs: A Petite Entity Component System
+A header-only, very small entity component system with no external dependencies. Simply pop the
+header into your own project and off you go!
 
-This is a single header file that can be placed in your own project. It has no dependencies
-itself. The tests however require GTest to run.
+The API is very similar to EnTT, with the main difference being that all component types must
+be declared up front. This allows for an implementation that doesn't rely on type erasure, which
+in turn allows for more compile-time optimisations.
+
+Components are stored contiguously in `apx::sparse_set` objects, which are essentially a pair
+of `std::vector`s, one sparse and one packed, which allows for fast iteration over components.
+When deleting components, these sets may reorder themselves to maintain tight packing; as such,
+sorting isn't currently possibly, but also shouldn't be desired.
+
+This library also includes some very basic meta-programming functionality, found in the
+`apx::meta` namespace, as well as `apx::generator<T>`, a generator built using the C++20
+coroutine API.
+
+This project was just a fun little project to allow me to learn more about ECSs and how to
+implement one, as well as metaprogramming and C++20 features. If you are building your own
+project and need an ECS, I would recommend you build your own or use EnTT instead.
 
 ## Example
 ```cpp
