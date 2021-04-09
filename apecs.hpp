@@ -4,9 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <cassert>
-
-#include <fmt/format.h>
-#include <cppcoro/generator.hpp>
+#include <coroutine>
 
 namespace apx {
 namespace meta {
@@ -14,17 +12,17 @@ namespace meta {
 template <typename T, typename Tuple>
 struct tuple_contains;
 
-template <typename T, typename U, typename... Ts>
-struct tuple_contains<T, std::tuple<U, Ts...>> : tuple_contains<T, std::tuple<Ts...>> {};
+template <typename T>
+struct tuple_contains<T, std::tuple<>> : std::false_type {};
 
 template <typename T, typename... Ts>
 struct tuple_contains<T, std::tuple<T, Ts...>> : std::true_type {};
 
-template <typename T>
-struct tuple_contains<T, std::tuple<>> : std::false_type {};
+template <typename T, typename U, typename... Ts>
+struct tuple_contains<T, std::tuple<U, Ts...>> : tuple_contains<T, std::tuple<Ts...>> {};
 
 template <typename T, typename Tuple>
-using tuple_contains_v = tuple_contains<T, Tuple>::value;
+inline constexpr bool tuple_contains_v = tuple_contains<T, Tuple>::value;
 
 template <class Tuple, class F>
 constexpr void for_each(Tuple&& tuple, F&& f)
@@ -40,6 +38,156 @@ constexpr void for_each(Tuple&& tuple, F&& f)
 }
 
 }
+
+template <typename T> class generator;
+template <typename T> class generator_iterator;
+
+template <typename T>
+class generator_promise
+{
+public:
+    using value_type = std::decay_t<T>;
+
+private:
+    value_type*        d_val;
+    std::exception_ptr d_exception;
+
+public:
+    generator_promise() = default;
+
+    generator<T> get_return_object() noexcept
+    {
+        return generator<T>{
+            std::coroutine_handle<generator_promise<T>>::from_promise(*this)
+        };
+    }
+
+    constexpr std::suspend_always initial_suspend() const noexcept { return {}; }
+    constexpr std::suspend_always final_suspend() const noexcept { return {}; }
+
+    template <typename U>
+    constexpr std::suspend_never await_transform(U&&) = delete;
+
+    void return_void() {}
+
+    std::suspend_always yield_value(value_type&& value) noexcept
+    {
+        d_val = std::addressof(value);
+        return {};
+    }
+
+    void unhandled_exception() { d_exception = std::current_exception(); }
+
+    value_type& value() const noexcept { return *d_val; }
+
+    void rethrow_if()
+    {
+        if (d_exception) {
+            std::rethrow_exception(d_exception);
+        }
+    }
+};
+
+template <typename T>
+class generator
+{
+public:
+    using promise_type = generator_promise<T>;
+    using value_type = typename promise_type::value_type;
+
+    using coroutine_handle = std::coroutine_handle<promise_type>;
+    using iterator = generator_iterator<T>;
+
+    coroutine_handle d_coroutine;
+
+private:
+    generator(const generator&) = delete;
+    generator& operator=(generator) = delete;
+
+public:
+    explicit generator(coroutine_handle coroutine) noexcept
+        : d_coroutine(coroutine)
+    {}
+
+    ~generator()
+    {
+        if (d_coroutine) { d_coroutine.destroy(); }
+    }
+
+    iterator begin()
+    {
+        advance();
+        return iterator{*this};
+    }
+
+    iterator::sentinel end() noexcept
+    {
+        return {};
+    }
+
+    bool valid() const noexcept
+    {
+        return d_coroutine && !d_coroutine.done();
+    }
+
+    void advance()
+    {
+        if (d_coroutine) {
+            d_coroutine.resume();
+            if (d_coroutine.done()) {
+                d_coroutine.promise().rethrow_if();
+            }
+        }
+    }
+
+    value_type& value() const
+    {
+        return d_coroutine.promise().value();
+    }
+};
+
+template <typename T>
+class generator_iterator
+{
+public:
+    using value_type = typename generator<T>::value_type;
+
+    using iterator_category = std::input_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+
+    struct sentinel {};
+
+private:
+    generator<T>& d_owner;
+
+public:
+    explicit generator_iterator(generator<T>& owner) noexcept
+        : d_owner(owner)
+    {}
+
+    friend bool operator==(const generator_iterator& it, sentinel)
+    {
+        return !it.d_owner.valid();
+    }
+
+    generator_iterator& operator++()
+    {
+        d_owner.advance();
+        return *this;
+    }
+
+    generator_iterator& operator++(int) { return operator++(); }
+
+    value_type& operator*() const noexcept
+    {
+        return d_owner.value();
+    }
+
+    value_type* operator->() const noexcept
+    {
+        return std::addressof(operator*());
+    }
+};
 
 template <typename value_type>
 class sparse_set
@@ -93,11 +241,11 @@ public:
 
     // Provides a generator that loops over the packed set, which is fast but
     // results in undefined behaviour when removing elements.
-    cppcoro::generator<std::pair<const index_type, value_type>&> fast();
+    apx::generator<std::pair<const index_type, value_type>&> fast();
 
     // Provides a generator that loops over the sparse set, which is slow but
     // allows for deleting elements while looping.
-    cppcoro::generator<std::pair<const index_type, value_type>&> safe();
+    apx::generator<std::pair<const index_type, value_type>&> safe();
 };
 
 
@@ -188,7 +336,7 @@ const value_type& sparse_set<value_type>::operator[](index_type index) const
 }
 
 template <typename value_type>
-auto sparse_set<value_type>::fast() -> cppcoro::generator<std::pair<const index_type, value_type>&>
+auto sparse_set<value_type>::fast() -> apx::generator<std::pair<const index_type, value_type>&>
 {
     for (auto pair : d_packed) {
         co_yield pair;
@@ -196,7 +344,7 @@ auto sparse_set<value_type>::fast() -> cppcoro::generator<std::pair<const index_
 }
 
 template <typename value_type>
-auto sparse_set<value_type>::safe() -> cppcoro::generator<std::pair<const index_type, value_type>&>
+auto sparse_set<value_type>::safe() -> apx::generator<std::pair<const index_type, value_type>&>
 {
     for (auto index : d_sparse) {
         if (index != EMPTY) {
@@ -344,7 +492,7 @@ public:
         return comp_set[apx::to_index(entity)];
     }
 
-    cppcoro::generator<apx::entity> all()
+    apx::generator<apx::entity> all()
     {
         for (auto [index, entity] : d_entities.fast()) {
             co_yield entity;
@@ -352,7 +500,7 @@ public:
     }
 
     template <typename T, typename... Ts>
-    cppcoro::generator<apx::entity> view()
+    apx::generator<apx::entity> view()
     {
         for (auto [index, component] : get_component_set<T>().fast()) {
             apx::entity = d_entities[index];
