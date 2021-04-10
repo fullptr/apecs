@@ -1,3 +1,6 @@
+#ifndef APECS_HPP_
+#define APECS_HPP_
+
 #include <deque>
 #include <tuple>
 #include <utility>
@@ -201,8 +204,6 @@ public:
     using iterator = typename packed_type::iterator;
 
 private:
-    static_assert(std::is_default_constructible<value_type>());
-    static_assert(std::is_copy_constructible<value_type>());
     static_assert(std::is_integral<index_type>());
 
     static constexpr index_type EMPTY = std::numeric_limits<index_type>::max();
@@ -211,147 +212,131 @@ private:
     sparse_type d_sparse;
 
     // Grows the sparse set so that the given index becomes valid.
-    void assure(index_type index);
+    constexpr void assure(index_type index)
+    {
+        assert(!has(index));
+        if (d_sparse.size() <= index) {
+            d_sparse.resize(index + 1, EMPTY);
+        }
+    }
 
 public:
     sparse_set() = default;
 
     // Inserts the given value into the specified index. If a value already
     // exists at that index, it is overwritten.
-    value_type& insert(index_type index, const value_type& value);
+    constexpr value_type& insert(index_type index, const value_type& value)
+    {
+        assure(index);
+        d_sparse[index] = d_packed.size();
+        return d_packed.emplace_back(index, value).second;
+    }
+
+    constexpr value_type& insert(index_type index, value_type&& value)
+    {
+        assure(index);
+        d_sparse[index] = d_packed.size();
+        return d_packed.emplace_back(index, std::move(value)).second;
+    }
+
+    template <typename... Args>
+    constexpr value_type& emplace(index_type index, Args&&... args)
+    {
+        assure(index);
+        d_sparse[index] = d_packed.size();
+        return d_packed.emplace_back(std::piecewise_construct,
+                                     std::forward_as_tuple(index),
+                                     std::forward_as_tuple(std::forward<Args>(args)...)).second;
+    }
 
     // Returns true if the specified index contains a value, and false otherwise.
-    bool has(index_type index) const;
+    [[nodiscard]] bool has(index_type index) const
+    {
+        return index < d_sparse.size() && d_sparse[index] != EMPTY;
+    }
 
     // Removes all elements from the set.
-    void clear();
+    void clear()
+    {
+        d_packed.clear();
+        d_sparse.clear();
+    }
 
     // Removes the value at the specified index. The structure may reorder
     // itself to maintain contiguity for iteration.
-    void erase(index_type index);
+    void erase(index_type index)
+    {
+        assert(has(index));
+
+        if (d_sparse[index] == d_packed.size() - 1) {
+            d_sparse[index] = EMPTY;
+            d_packed.pop_back();
+            return;
+        }
+
+        // Pop the back element of the sparse_list
+        auto back = d_packed.back();
+        d_packed.pop_back();
+
+        // Get the index of the outgoing value within the elements vector.
+        std::size_t packed_index = d_sparse[index];
+        d_sparse[index] = EMPTY;
+
+        // Overwrite the outgoing value with the back value.
+        d_packed[packed_index] = back;
+
+        // Point the index for the back value to its new location.
+        d_sparse[back.first] = packed_index;
+    }
 
     // Removes the value at the specified index, and does nothing if the index
     // does not exist. The structure may reorder itself to maintain element contiguity.
-    void erase_if_exists(index_type index) noexcept;
+    void erase_if_exists(index_type index) noexcept
+    {
+        if (has(index)) {
+            erase(index);
+        }
+    }
 
-    std::size_t size() const;
+    [[nodiscard]] std::size_t size() const
+    {
+        return d_packed.size();
+    }
 
-    value_type& operator[](index_type index);
-    const value_type& operator[](index_type index) const;
+    value_type& operator[](index_type index)
+    {
+        if (has(index)) {
+            return d_packed[d_sparse[index]].second;
+        }
+        return insert(index, value_type{});
+    }
+
+    const value_type& operator[](index_type index) const
+    {
+        assert(has(index));
+        return d_packed[d_sparse[index]].second;
+    }
 
     // Provides a generator that loops over the packed set, which is fast but
     // results in undefined behaviour when removing elements.
-    apx::generator<std::pair<const index_type, value_type>&> fast();
+    apx::generator<std::pair<const index_type, value_type>&> fast()
+    {
+        for (auto pair : d_packed) {
+            co_yield pair;
+        }
+    }
 
     // Provides a generator that loops over the sparse set, which is slow but
     // allows for deleting elements while looping.
-    apx::generator<std::pair<const index_type, value_type>&> safe();
-};
-
-
-template <typename value_type>
-void sparse_set<value_type>::assure(index_type index) {
-    if (d_sparse.size() <= index) {
-        d_sparse.resize(index + 1, EMPTY);
-    }
-}
-
-template <typename value_type>
-value_type& sparse_set<value_type>::insert(index_type index, const value_type& value)
-{
-    assert(!has(index));
-    assure(index);
-    index_type location = d_packed.size();
-    d_sparse[index] = location;
-    return d_packed.emplace_back(std::make_pair(index, value)).second;
-}
-
-template <typename value_type>
-bool sparse_set<value_type>::has(index_type index) const
-{
-    return index < d_sparse.size() && d_sparse[index] != EMPTY;
-}
-
-template <typename value_type>
-void sparse_set<value_type>::clear()
-{
-    d_packed.clear();
-    d_sparse.clear();
-}
-
-template <typename value_type>
-void sparse_set<value_type>::erase(index_type index)
-{
-    assert(has(index));
-
-    if (d_sparse[index] == d_packed.size() - 1) {
-        d_sparse[index] = EMPTY;
-        d_packed.pop_back();
-        return;
-    }
-
-    // Pop the back element of the sparse_list
-    auto back = d_packed.back();
-    d_packed.pop_back();
-
-    // Get the index of the outgoing value within the elements vector.
-    std::size_t packed_index = d_sparse[index];
-    d_sparse[index] = EMPTY;
-
-    // Overwrite the outgoing value with the back value.
-    d_packed[packed_index] = back;
-
-    // Point the index for the back value to its new location.
-    d_sparse[back.first] = packed_index;
-}
-
-template <typename value_type>
-void sparse_set<value_type>::erase_if_exists(index_type index) noexcept
-{
-    if (has(index)) {
-        erase(index);
-    }
-}
-
-template <typename value_type>
-std::size_t sparse_set<value_type>::size() const
-{
-    return d_packed.size();
-}
-
-template <typename value_type>
-value_type& sparse_set<value_type>::operator[](index_type index)
-{
-    if (has(index)) {
-        return d_packed[d_sparse[index]].second;
-    }
-    return insert(index, value_type{});
-}
-
-template <typename value_type>
-const value_type& sparse_set<value_type>::operator[](index_type index) const
-{
-    assert(has(index));
-    return d_packed[d_sparse[index]].second;
-}
-
-template <typename value_type>
-auto sparse_set<value_type>::fast() -> apx::generator<std::pair<const index_type, value_type>&>
-{
-    for (auto pair : d_packed) {
-        co_yield pair;
-    }
-}
-
-template <typename value_type>
-auto sparse_set<value_type>::safe() -> apx::generator<std::pair<const index_type, value_type>&>
-{
-    for (auto index : d_sparse) {
-        if (index != EMPTY) {
-            co_yield d_packed[index];
+    apx::generator<std::pair<const index_type, value_type>&> safe()
+    {
+        for (auto index : d_sparse) {
+            if (index != EMPTY) {
+                co_yield d_packed[index];
+            }
         }
     }
-}
+};
 
 enum class entity : std::uint64_t {};
 using index_t = std::uint32_t;
@@ -439,6 +424,11 @@ public:
         d_entities.erase(apx::to_index(entity));
     }
 
+    std::size_t size() const
+    {
+        return d_entities.size();
+    }
+
     void clear()
     {
         for (auto [idx, entity] : d_entities.safe()) {
@@ -457,7 +447,7 @@ public:
         static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
         assert(valid(entity));
 
-        auto& comp_set = std::get<apx::sparse_set<Comp>>();
+        auto& comp_set = get_component_set<Comp>();
         return comp_set.insert(apx::to_index(entity), component);
     }
 
@@ -485,7 +475,6 @@ public:
     Comp& get(apx::entity entity)
     {
         static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
-        assert(valid(entity));
         assert(has<Comp>(entity));
 
         auto& comp_set = get_component_set<Comp>();
@@ -511,4 +500,31 @@ public:
     }
 };
 
+template <typename... Comps>
+class handle
+{
+    apx::registry<Comps...>* registry;
+    apx::entity              entity;
+
+public:
+    handle(apx::registry<Comps...>* r, apx::entity e) : registry(r), entity(e) {}
+
+    bool valid() noexcept { return registry->valid(entity); }
+    void destroy() { registry->destroy(entity); }
+
+    template <typename Comp>
+    Comp& add(const Comp& component) { return registry->add<Comp>(entity, component); }
+
+    template <typename Comp>
+    void remove() { registry->remove<Comp>(entity); }
+
+    template <typename Comp>
+    bool has() { return registry->has<Comp>(entity); }
+
+    template <typename Comp>
+    Comp& get() { return registry->get<Comp>(entity); }
+};
+
 }
+
+#endif // APECS_HPP_
