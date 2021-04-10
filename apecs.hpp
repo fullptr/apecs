@@ -392,7 +392,7 @@ public:
 
     apx::entity create()
     {
-        index_t index = d_entities.size();
+        index_t index = (index_t)d_entities.size();
         version_t version = 0;
         if (!d_pool.empty()) {
             std::tie(index, version) = split(d_pool.front());
