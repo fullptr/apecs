@@ -101,9 +101,9 @@ public:
     using coroutine_handle = std::coroutine_handle<promise_type>;
     using iterator = generator_iterator<T>;
 
+private:
     coroutine_handle d_coroutine;
 
-private:
     generator(const generator&) = delete;
     generator& operator=(generator) = delete;
 
