@@ -98,17 +98,16 @@ public:
     using promise_type = generator_promise<T>;
     using value_type = typename promise_type::value_type;
 
-    using coroutine_handle = std::coroutine_handle<promise_type>;
     using iterator = generator_iterator<T>;
 
 private:
-    coroutine_handle d_coroutine;
+    std::coroutine_handle<promise_type> d_coroutine;
 
     generator(const generator&) = delete;
     generator& operator=(generator) = delete;
 
 public:
-    explicit generator(coroutine_handle coroutine) noexcept
+    explicit generator(std::coroutine_handle<promise_type> coroutine) noexcept
         : d_coroutine(coroutine)
     {}
 
