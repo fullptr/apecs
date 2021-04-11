@@ -94,7 +94,15 @@ TEST(registry, on_remove_callback_reigstry_destructs)
 TEST(registry, for_each_type)
 {
     apx::registry<foo, bar> reg;
-    auto e = reg.create();
+    apx::entity e = reg.create();
+    std::size_t count = 0;
+
+    apx::meta::for_each(reg.tags, [&](auto&& tag) {
+        using T = decltype(apx::meta::from_tag(tag));
+        reg.on_add<T>([&](apx::entity entity, const T&) {
+            ++count;
+        });
+    });
 
     apx::meta::for_each(reg.tags, [&](auto&& tag) {
         using T = decltype(apx::meta::from_tag(tag));
@@ -103,4 +111,5 @@ TEST(registry, for_each_type)
 
     ASSERT_TRUE(reg.has<foo>(e));
     ASSERT_TRUE(reg.has<bar>(e));
+    ASSERT_EQ(count, 2);
 }

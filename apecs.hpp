@@ -73,9 +73,6 @@ public:
     constexpr std::suspend_always initial_suspend() const noexcept { return {}; }
     constexpr std::suspend_always final_suspend() const noexcept { return {}; }
 
-    template <typename U>
-    constexpr std::suspend_never await_transform(U&&) = delete;
-
     void return_void() {}
 
     std::suspend_always yield_value(value_type&& value) noexcept
@@ -373,6 +370,7 @@ public:
     template <typename T>
     using callback_t = std::function<void(apx::entity, const T&)>;
 
+    // A tuple of tag types for metaprogramming purposes
     inline static constexpr std::tuple<apx::meta::tag<Comps>...> tags{};
 
 private:
