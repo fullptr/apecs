@@ -42,6 +42,9 @@ constexpr void for_each(Tuple&& tuple, F&& f)
     );
 }
 
+template <typename T> struct tag {};
+template <typename T> auto from_tag(tag<T>) -> std::decay_t<T>;
+
 }
 
 template <typename T> class generator;
@@ -370,6 +373,8 @@ public:
     template <typename T>
     using callback_t = std::function<void(apx::entity, const T&)>;
 
+    inline static constexpr std::tuple<apx::meta::tag<Comps>...> tags{};
+
 private:
     using tuple_type = std::tuple<apx::sparse_set<Comps>...>;
 
@@ -406,7 +411,7 @@ public:
 
     template <typename Comp>
     void on_add(callback_t<Comp>&& callback)
-    { 
+    {
         std::get<std::vector<callback_t<Comp>>>(d_on_add).push_back(std::move(callback));
     }
 
