@@ -69,6 +69,7 @@
         "xmemory": "cpp",
         "xstddef": "cpp",
         "iostream": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "variant": "cpp"
     },
 }

@@ -1,13 +1,15 @@
 #ifndef APECS_HPP_
 #define APECS_HPP_
 
-#include <deque>
-#include <tuple>
-#include <utility>
-#include <vector>
-#include <cstdint>
 #include <cassert>
 #include <coroutine>
+#include <cstdint>
+#include <deque>
+#include <functional>
+#include <tuple>
+#include <utility>
+#include <variant>
+#include <vector>
 
 namespace apx {
 namespace meta {
@@ -40,6 +42,9 @@ constexpr void for_each(Tuple&& tuple, F&& f)
     );
 }
 
+template <typename T> struct tag {};
+template <typename T> auto from_tag(tag<T>) -> std::decay_t<T>;
+
 }
 
 template <typename T> class generator;
@@ -68,9 +73,6 @@ public:
     constexpr std::suspend_always initial_suspend() const noexcept { return {}; }
     constexpr std::suspend_always final_suspend() const noexcept { return {}; }
 
-    template <typename U>
-    constexpr std::suspend_never await_transform(U&&) = delete;
-
     void return_void() {}
 
     std::suspend_always yield_value(value_type&& value) noexcept
@@ -98,17 +100,16 @@ public:
     using promise_type = generator_promise<T>;
     using value_type = typename promise_type::value_type;
 
-    using coroutine_handle = std::coroutine_handle<promise_type>;
     using iterator = generator_iterator<T>;
 
-    coroutine_handle d_coroutine;
-
 private:
+    std::coroutine_handle<promise_type> d_coroutine;
+
     generator(const generator&) = delete;
     generator& operator=(generator) = delete;
 
 public:
-    explicit generator(coroutine_handle coroutine) noexcept
+    explicit generator(std::coroutine_handle<promise_type> coroutine) noexcept
         : d_coroutine(coroutine)
     {}
 
@@ -365,6 +366,14 @@ inline apx::index_t to_index(apx::entity entity)
 template <typename... Comps>
 class registry
 {
+public:
+    template <typename T>
+    using callback_t = std::function<void(apx::entity, const T&)>;
+
+    // A tuple of tag types for metaprogramming purposes
+    inline static constexpr std::tuple<apx::meta::tag<Comps>...> tags{};
+
+private:
     using tuple_type = std::tuple<apx::sparse_set<Comps>...>;
 
     apx::sparse_set<apx::entity> d_entities;
@@ -372,10 +381,18 @@ class registry
 
     tuple_type d_components;
 
+    std::tuple<std::vector<callback_t<Comps>>...> d_on_add;
+    std::tuple<std::vector<callback_t<Comps>>...> d_on_remove;
+
     template <typename Comp>
     void remove(apx::entity entity, apx::sparse_set<Comp>& component_set)
     {
-        component_set.erase_if_exists(apx::to_index(entity));
+        if (has<Comp>(entity)) {
+            for (auto cb : std::get<std::vector<callback_t<Comp>>>(d_on_remove)) {
+                cb(entity, get<Comp>(entity));
+            }
+            component_set.erase(apx::to_index(entity));
+        }
     }
 
     template <typename Comp>
@@ -388,6 +405,18 @@ public:
     ~registry()
     {
         clear();
+    }
+
+    template <typename Comp>
+    void on_add(callback_t<Comp>&& callback)
+    {
+        std::get<std::vector<callback_t<Comp>>>(d_on_add).push_back(std::move(callback));
+    }
+
+    template <typename Comp>
+    void on_remove(callback_t<Comp>&& callback)
+    {
+        std::get<std::vector<callback_t<Comp>>>(d_on_remove).push_back(std::move(callback));
     }
 
     apx::entity create()
@@ -405,7 +434,7 @@ public:
         return id;
     }
 
-    bool valid(apx::entity entity) noexcept
+    [[nodiscard]] bool valid(apx::entity entity) noexcept
     {
         apx::index_t index = apx::to_index(entity);
         return entity != apx::null
@@ -424,7 +453,7 @@ public:
         d_entities.erase(apx::to_index(entity));
     }
 
-    std::size_t size() const
+    [[nodiscard]] std::size_t size() const
     {
         return d_entities.size();
     }
@@ -448,7 +477,11 @@ public:
         assert(valid(entity));
 
         auto& comp_set = get_component_set<Comp>();
-        return comp_set.insert(apx::to_index(entity), component);
+        auto& ret = comp_set.insert(apx::to_index(entity), component);
+        for (auto cb : std::get<std::vector<callback_t<Comp>>>(d_on_add)) {
+            cb(entity, ret);
+        }
+        return ret;
     }
 
     template <typename Comp>
