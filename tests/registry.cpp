@@ -38,3 +38,21 @@ TEST(registry, size_of_registry)
     reg.clear();
     ASSERT_EQ(reg.size(), 0);
 }
+
+TEST(registry, on_add_callback)
+{
+    apx::registry<foo, bar> reg;
+    std::size_t count = 0;
+    reg.on_add<foo>([&](apx::entity, const foo& component) {
+        ++count;
+    });
+
+    auto e1 = reg.create();
+    reg.add<foo>(e1, {});
+    reg.add<bar>(e1, {}); // Should not increase the count
+
+    auto e2 = reg.create();
+    reg.add<foo>(e2, {});
+
+    ASSERT_EQ(count, 2);
+}
