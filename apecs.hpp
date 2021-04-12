@@ -465,9 +465,6 @@ public:
         }
         d_entities.clear();
         d_pool.clear();
-        apx::meta::for_each(d_components, [](auto& comp_list) {
-            comp_list.clear();
-        });
     }
 
     template <typename Comp>
@@ -557,6 +554,12 @@ public:
     template <typename Comp>
     Comp& get() { return registry->get<Comp>(entity); }
 };
+
+template <typename... Comps>
+inline apx::handle<Comps...> create_from(apx::registry<Comps...>& registry)
+{
+    return {&registry, registry.create()};
+}
 
 }
 
