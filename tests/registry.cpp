@@ -113,3 +113,17 @@ TEST(registry, for_each_type)
     ASSERT_TRUE(reg.has<bar>(e));
     ASSERT_EQ(count, 2);
 }
+
+TEST(registry, test_noexcept_get)
+{
+    apx::registry<foo, bar> reg;
+    apx::entity e = reg.create();
+
+    reg.add<foo>(e, {});
+
+    foo* foo_get = reg.get_if<foo>(e);
+    ASSERT_NE(foo_get, nullptr);
+
+    bar* bar_get = reg.get_if<bar>(e);
+    ASSERT_EQ(bar_get, nullptr);
+}

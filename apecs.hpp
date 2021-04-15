@@ -29,7 +29,7 @@ struct tuple_contains<T, std::tuple<U, Ts...>> : tuple_contains<T, std::tuple<Ts
 template <typename T, typename Tuple>
 inline constexpr bool tuple_contains_v = tuple_contains<T, Tuple>::value;
 
-template <class Tuple, class F>
+template <typename Tuple, typename F>
 constexpr void for_each(Tuple&& tuple, F&& f)
 {
     [] <std::size_t... I> (Tuple&& tuple, F&& f, std::index_sequence<I...>)
@@ -150,6 +150,14 @@ public:
     {
         return d_coroutine.promise().value();
     }
+
+    template <typename Func>
+    void each(Func&& f)
+    {
+        for (auto& val : *this) {
+            f(val);
+        }
+    }
 };
 
 template <typename T>
@@ -259,7 +267,7 @@ public:
     }
 
     // Removes all elements from the set.
-    void clear()
+    void clear() noexcept
     {
         d_packed.clear();
         d_sparse.clear();
@@ -301,17 +309,15 @@ public:
         }
     }
 
-    [[nodiscard]] std::size_t size() const
+    [[nodiscard]] std::size_t size() const noexcept
     {
         return d_packed.size();
     }
 
     value_type& operator[](index_type index)
     {
-        if (has(index)) {
-            return d_packed[d_sparse[index]].second;
-        }
-        return insert(index, value_type{});
+        assert(has(index));
+        return d_packed[d_sparse[index]].second;
     }
 
     const value_type& operator[](index_type index) const
@@ -484,6 +490,34 @@ public:
     }
 
     template <typename Comp>
+    Comp& add(apx::entity entity, Comp&& component)
+    {
+        static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
+        assert(valid(entity));
+
+        auto& comp_set = get_component_set<Comp>();
+        auto& ret = comp_set.insert(apx::to_index(entity), std::move(component));
+        for (auto cb : std::get<std::vector<callback_t<Comp>>>(d_on_add)) {
+            cb(entity, ret);
+        }
+        return ret;
+    }
+
+    template <typename Comp, typename... Args>
+    Comp& emplace(apx::entity entity, Args&&... args)
+    {
+        static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
+        assert(valid(entity));
+
+        auto& comp_set = get_component_set<Comp>();
+        auto& ret = comp_set.emplace(apx::to_index(entity), std::forward<Args>(args)...);
+        for (auto cb : std::get<std::vector<callback_t<Comp>>>(d_on_add)) {
+            cb(entity, ret);
+        }
+        return ret;
+    }
+
+    template <typename Comp>
     void remove(apx::entity entity)
     {
         static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
@@ -511,6 +545,23 @@ public:
 
         auto& comp_set = get_component_set<Comp>();
         return comp_set[apx::to_index(entity)];
+    }
+
+    template <typename Comp>
+    const Comp& get(apx::entity entity) const
+    {
+        static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
+        assert(has<Comp>(entity));
+
+        auto& comp_set = get_component_set<Comp>();
+        return comp_set[apx::to_index(entity)];
+    }
+
+    template <typename Comp>
+    Comp* get_if(apx::entity entity) noexcept
+    {
+        static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
+        return has<Comp>(entity) ? &get<Comp>(entity) : nullptr;
     }
 
     apx::generator<apx::entity> all()
@@ -548,6 +599,12 @@ public:
     Comp& add(const Comp& component) { return registry->add<Comp>(entity, component); }
 
     template <typename Comp>
+    Comp& add(Comp&& component) { return registry->add<Comp>(entity, std::move(component)); }
+
+    template <typename Comp, typename... Args>
+    Comp& emplace(Args&&... args) { return registry->emplace<Comp>(entity, std::forward<Args>(args)...); }
+
+    template <typename Comp>
     void remove() { registry->remove<Comp>(entity); }
 
     template <typename Comp>
@@ -555,6 +612,12 @@ public:
 
     template <typename Comp>
     Comp& get() { return registry->get<Comp>(entity); }
+
+    template <typename Comp>
+    const Comp& get() const { return registry->get<Comp>(entity); }
+
+    template <typename Comp>
+    Comp* get_if() noexcept { return registry->get_if<Comp>(entity); }
 };
 
 template <typename... Comps>
