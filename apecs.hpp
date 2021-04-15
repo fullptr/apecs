@@ -345,7 +345,7 @@ enum class entity : std::uint64_t {};
 using index_t = std::uint32_t;
 using version_t = std::uint32_t;
 
-static const apx::entity null{std::numeric_limits<std::uint64_t>::max()};
+static constexpr apx::entity null{std::numeric_limits<std::uint64_t>::max()};
 
 inline std::pair<index_t, version_t> split(apx::entity id)
 {
