@@ -599,6 +599,12 @@ public:
     Comp& add(const Comp& component) { return registry->add<Comp>(entity, component); }
 
     template <typename Comp>
+    Comp& add(Comp&& component) { return registry->add<Comp>(entity, std::move(component)); }
+
+    template <typename Comp, typename... Args>
+    Comp& emplace(Args&&... args) { return registry->emplace<Comp>(entity, std::forward<Args>(args)...); }
+
+    template <typename Comp>
     void remove() { registry->remove<Comp>(entity); }
 
     template <typename Comp>
@@ -606,6 +612,12 @@ public:
 
     template <typename Comp>
     Comp& get() { return registry->get<Comp>(entity); }
+
+    template <typename Comp>
+    const Comp& get() const { return registry->get<Comp>(entity); }
+
+    template <typename Comp>
+    Comp* get_if() noexcept { return registry->get_if<Comp>(entity); }
 };
 
 template <typename... Comps>
