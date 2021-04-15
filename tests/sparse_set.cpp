@@ -24,7 +24,7 @@ TEST(sparse_set, erase)
 TEST(sparse_set, fast_with_one_element)
 {
     apx::sparse_set<int> set;
-    set[2] = 5;
+    set.insert(2, 5);
 
     for (auto [key, value] : set.fast()) {
         ASSERT_EQ(key, 2);

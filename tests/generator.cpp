@@ -20,3 +20,18 @@ TEST(generator, sum_elements_of_ints)
     }
     ASSERT_EQ(count, 6);
 }
+
+TEST(generator, each_function)
+{
+    int count1 = 0;
+    ints().each([&](int val) {
+        count1 += val;
+    });
+
+    int count2 = 0;
+    for (int val : ints()) {
+        count2 += val;
+    }
+
+    ASSERT_EQ(count1, count2);
+}
