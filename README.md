@@ -18,7 +18,7 @@ Creating an empty entity is simple
 ```cpp
 apx::entity e = registry.create();
 ```
-As is adding components to an entity
+Adding a component is also easy
 ```cpp
 transform t = { 0.0, 0.0, 0.0 }; // In this example, a transform consists of just a 3D coordinate
 registry.add(e, t);
@@ -26,7 +26,15 @@ registry.add(e, t);
 // Or more explicitly:
 registry.add<transform>(e, t);
 ```
-as well as removing components
+Move construction is also allowed, as well as directly constructing via emplace
+```cpp
+// Uses move constructor (not that there is any benefit with the simple trasnsform struct)
+registry.add<transform>(e, {0.0, 0.0, 0.0});
+
+// Only constructs one instance and does no copying/moving
+registry.emplace<transform>(e, 0.0, 0.0, 0.0);
+```
+Removing is just as easy
 ```cpp
 registry.remove<transform>(e);
 ```
@@ -35,6 +43,12 @@ Components can be accessed by reference for modification, and entities may be qu
 if (registry.has<transform>(e)) {
   auto& t = registry.get<transform>(e);
   update_transform(t);
+}
+```
+There is also the noexcept version `get_if` which returns a pointer to the component, and `nullptr` if it does not exist
+```cpp
+if (auto* t = registry.get_if<transform>(e)) {
+  update_transform(*t);
 }
 ```
 Deleting an entity is also straightforward
@@ -71,6 +85,19 @@ for (auto entity : registry.view<transform, mesh>()) {
 }
 ```
 When iterating over all entities, the iteration is done over the internal entity sparse set. When iterating over a view, we iterate over the sparse set of the first specified component, which can result in a much faster loop. Because of this, if you know that one of the component types is rarer than the others, put that as the first component.
+
+If you prefer a more functional approach, `apx::generator<T>` also provides an `each(Function&& f)` function to allow for the following
+```cpp
+registry.all().each([](auto entity) {
+  ...
+});
+```
+and
+```cpp
+registry.view<transform, mesh>().each([](auto entity) {
+  ...
+});
+```
 
 ## Notification System
 `apecs`, like `EnTT`, is mainly just a data structure for storing components, and does not have any built in features specifically for systems; they are left up to the user. However, `apecs` does also allow for registering callbacks so that systems can be notified whenever a component is created or destroyed. Callbacks have the signature `void(apx::entity, const Component&)`. To be notified of a component being added, use `on_add`
