@@ -42,8 +42,10 @@ constexpr void for_each(Tuple&& tuple, F&& f)
     );
 }
 
-template <typename T> struct tag {};
-template <typename T> auto from_tag(tag<T>) -> std::decay_t<T>;
+template <typename T> struct tag
+{
+    static T type(); // Not implmented, to be used with decltype 
+};
 
 }
 
@@ -343,7 +345,7 @@ enum class entity : std::uint64_t {};
 using index_t = std::uint32_t;
 using version_t = std::uint32_t;
 
-static const apx::entity null{std::numeric_limits<std::uint64_t>::max()};
+static constexpr apx::entity null{std::numeric_limits<std::uint64_t>::max()};
 
 inline std::pair<index_t, version_t> split(apx::entity id)
 {

@@ -123,10 +123,10 @@ apx::meta::for_each(tuple, [](auto&& element) {
 ```
 This of course needs to be generic lambda as this gets invoked for each typle in the tuple.
 
-In extension to the above, you may also find yourself needing to loop over all types within a reigstry. This can be achieved by creating a tuple of `apx::tag<T>` types and extracting the type from those in a for loop. The library provides some helpers for this. In particular, each registry provides an `inline static constexpr` version of this tuple as `registry<Comps...>::tags` and there is `apx::meta::from_tag(tag)` which is intended to be used in a `declype` expression to get the type:
+In extension to the above, you may also find yourself needing to loop over all types within a reigstry. This can be achieved by creating a tuple of `apx::tag<T>` types and extracting the type from those in a for loop. The library provides some helpers for this. In particular, each registry provides an `inline static constexpr` version of this tuple as `registry<Comps...>::tags` and there is `apx::meta::tag<T>::type()` which is intended to be used in a `declype` expression to get the type:
 ```cpp
 apx::meta::for_each(registry.tags, [](auto&& tag) {
-  using T = decltype(apx::meta::from_tag(tag));
+  using T = decltype(tag.type());
   ...
 });
 ```
