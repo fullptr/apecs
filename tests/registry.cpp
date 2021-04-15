@@ -98,14 +98,14 @@ TEST(registry, for_each_type)
     std::size_t count = 0;
 
     apx::meta::for_each(reg.tags, [&](auto&& tag) {
-        using T = decltype(apx::meta::from_tag(tag));
+        using T = decltype(tag.type());
         reg.on_add<T>([&](apx::entity entity, const T&) {
             ++count;
         });
     });
 
     apx::meta::for_each(reg.tags, [&](auto&& tag) {
-        using T = decltype(apx::meta::from_tag(tag));
+        using T = decltype(tag.type());
         reg.add<T>(e, {});
     });
 

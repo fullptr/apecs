@@ -42,8 +42,10 @@ constexpr void for_each(Tuple&& tuple, F&& f)
     );
 }
 
-template <typename T> struct tag {};
-template <typename T> auto from_tag(tag<T>) -> std::decay_t<T>;
+template <typename T> struct tag
+{
+    static T type(); // Not implmented, to be used with decltype 
+};
 
 }
 
