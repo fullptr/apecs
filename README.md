@@ -165,8 +165,6 @@ apx::meta::for_each(registry.tags, []<typename T>(apx::meta::tag<T>) {
 ```
 
 ## Upcoming Features
-- `apx::registry::emplace(...)` to construct components in place with minimal allocations.
-- `const`ness for getting components. That is, a version of `apx::get<T>` that is const and returns a `const T&`, as well as allowing `apx::get<const T>` to be explicit.
 - The ability to deregister callbacks.
 - A slower way of iterating components that allows for deleting and inserting new components. See `apx::sparse_set::safe` vs `apx::sparse_set::fast` for more info.
 - Potentially `apx::handle` based versions for `registry::all` and `registry::view`.
