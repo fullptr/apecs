@@ -372,6 +372,9 @@ inline apx::index_t to_index(apx::entity entity)
 }
 
 template <typename... Comps>
+class handle;
+
+template <typename... Comps>
 class registry
 {
 public:
@@ -380,6 +383,8 @@ public:
 
     // A tuple of tag types for metaprogramming purposes
     inline static constexpr std::tuple<apx::meta::tag<Comps>...> tags{};
+
+    using handle_type = apx::handle<Comps...>;
 
 private:
     using tuple_type = std::tuple<apx::sparse_set<Comps>...>;
