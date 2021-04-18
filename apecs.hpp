@@ -20,7 +20,8 @@ struct tuple_contains;
 template <typename T, typename... Ts>
 struct tuple_contains<T, std::tuple<Ts...>> : std::conditional_t<
     (std::is_same_v<T, Ts> || ...), std::true_type, std::false_type
-> {};
+>
+{};
 
 template <typename T, typename Tuple>
 inline constexpr bool tuple_contains_v = tuple_contains<T, Tuple>::value;
@@ -584,7 +585,7 @@ class handle
     apx::entity              entity;
 
 public:
-    handle(apx::registry<Comps...>* r, apx::entity e) : registry(r), entity(e) {}
+    handle(apx::registry<Comps...>& r, apx::entity e) : registry(&r), entity(e) {}
 
     bool valid() noexcept { return registry->valid(entity); }
     void destroy() { registry->destroy(entity); }
@@ -617,7 +618,7 @@ public:
 template <typename... Comps>
 inline apx::handle<Comps...> create_from(apx::registry<Comps...>& registry)
 {
-    return {&registry, registry.create()};
+    return {registry, registry.create()};
 }
 
 }
