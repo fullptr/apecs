@@ -17,14 +17,11 @@ namespace meta {
 template <typename T, typename Tuple>
 struct tuple_contains;
 
-template <typename T>
-struct tuple_contains<T, std::tuple<>> : std::false_type {};
-
 template <typename T, typename... Ts>
-struct tuple_contains<T, std::tuple<T, Ts...>> : std::true_type {};
-
-template <typename T, typename U, typename... Ts>
-struct tuple_contains<T, std::tuple<U, Ts...>> : tuple_contains<T, std::tuple<Ts...>> {};
+struct tuple_contains<T, std::tuple<Ts...>>
+{
+    static constexpr bool value = (std::is_same_v<T, Ts> || ...);
+};
 
 template <typename T, typename Tuple>
 inline constexpr bool tuple_contains_v = tuple_contains<T, Tuple>::value;
@@ -32,14 +29,7 @@ inline constexpr bool tuple_contains_v = tuple_contains<T, Tuple>::value;
 template <typename Tuple, typename F>
 constexpr void for_each(Tuple&& tuple, F&& f)
 {
-    [] <std::size_t... I> (Tuple&& tuple, F&& f, std::index_sequence<I...>)
-    {
-        (f(std::get<I>(tuple)), ...);
-    }(
-        std::forward<Tuple>(tuple),
-        std::forward<F>(f),
-        std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>{}
-    );
+    std::apply([&](auto&&... x) { (f(x), ...); }, tuple);
 }
 
 template <typename T> struct tag
@@ -595,7 +585,7 @@ class handle
     apx::entity              entity;
 
 public:
-    handle(apx::registry<Comps...>* r, apx::entity e) : registry(r), entity(e) {}
+    handle(apx::registry<Comps...>& r, apx::entity e) : registry(&r), entity(e) {}
 
     bool valid() noexcept { return registry->valid(entity); }
     void destroy() { registry->destroy(entity); }
@@ -628,7 +618,7 @@ public:
 template <typename... Comps>
 inline apx::handle<Comps...> create_from(apx::registry<Comps...>& registry)
 {
-    return {&registry, registry.create()};
+    return {registry, registry.create()};
 }
 
 }
