@@ -18,10 +18,10 @@ template <typename T, typename Tuple>
 struct tuple_contains;
 
 template <typename T, typename... Ts>
-struct tuple_contains<T, std::tuple<Ts...>> : std::conditional_t<
-    (std::is_same_v<T, Ts> || ...), std::true_type, std::false_type
->
-{};
+struct tuple_contains<T, std::tuple<Ts...>>
+{
+    static constexpr bool value = (std::is_same_v<T, Ts> || ...);
+};
 
 template <typename T, typename Tuple>
 inline constexpr bool tuple_contains_v = tuple_contains<T, Tuple>::value;
