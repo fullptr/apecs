@@ -143,3 +143,15 @@ TEST(registry, test_noexcept_get)
     bar* bar_get = reg.get_if<bar>(e);
     ASSERT_EQ(bar_get, nullptr);
 }
+
+TEST(handle, handle_basics)
+{
+    apx::registry<foo, bar> reg;
+    apx::handle h = apx::create_from(reg);
+
+    h.emplace<foo>();
+    ASSERT_TRUE(h.has<foo>());
+
+    h.remove<foo>();
+    ASSERT_FALSE(h.has<foo>());
+}
