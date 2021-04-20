@@ -397,7 +397,7 @@ private:
     void remove(apx::entity entity, apx::sparse_set<Comp>& component_set)
     {
         if (has<Comp>(entity)) {
-            for (auto cb : std::get<std::vector<callback_t<Comp>>>(d_on_remove)) {
+            for (auto& cb : std::get<std::vector<callback_t<Comp>>>(d_on_remove)) {
                 cb(entity, get<Comp>(entity));
             }
             component_set.erase(apx::to_index(entity));
@@ -484,7 +484,7 @@ public:
 
         auto& comp_set = get_component_set<Comp>();
         auto& ret = comp_set.insert(apx::to_index(entity), component);
-        for (auto cb : std::get<std::vector<callback_t<Comp>>>(d_on_add)) {
+        for (auto& cb : std::get<std::vector<callback_t<Comp>>>(d_on_add)) {
             cb(entity, ret);
         }
         return ret;
