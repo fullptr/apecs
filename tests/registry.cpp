@@ -15,22 +15,6 @@ TEST(registry, entity_invalid_after_destroying)
     ASSERT_FALSE(reg.valid(e));
 }
 
-TEST(registry, views)
-{
-    apx::registry<foo, bar> reg;
-
-    auto e1 = reg.create();
-    auto e2 = reg.create();
-
-    reg.emplace<foo>(e1);
-
-    std::size_t count = 0;
-    for (auto entity : reg.view<foo>()) {
-        ++count;
-    }
-    ASSERT_EQ(count, 1);
-}
-
 TEST(registry, size_of_registry)
 {
     apx::registry<foo, bar> reg;
@@ -87,7 +71,7 @@ TEST(registry, on_remove_callback)
     ASSERT_EQ(count, 1);
 }
 
-TEST(registry, on_remove_callback_reigstry_destructs)
+TEST(registry, on_remove_callback_registry_destructs)
 {
     std::size_t count = 0;
 
@@ -104,6 +88,25 @@ TEST(registry, on_remove_callback_reigstry_destructs)
         reg.add<foo>(e2, {});
     }
 
+    ASSERT_EQ(count, 2);
+}
+
+TEST(registry, on_remove_callback_registry_cleared)
+{
+    std::size_t count = 0;
+
+    apx::registry<foo, bar> reg;
+    reg.on_remove<foo>([&](apx::entity, const foo& component) {
+        ++count;
+    });
+
+    auto e1 = reg.create();
+    reg.add<foo>(e1, {});
+
+    auto e2 = reg.create();
+    reg.add<foo>(e2, {});
+
+    reg.clear();
     ASSERT_EQ(count, 2);
 }
 
@@ -144,14 +147,38 @@ TEST(registry, test_noexcept_get)
     ASSERT_EQ(bar_get, nullptr);
 }
 
-TEST(handle, handle_basics)
+TEST(registry, registry_view)
 {
     apx::registry<foo, bar> reg;
-    apx::handle h = apx::create_from(reg);
 
-    h.emplace<foo>();
-    ASSERT_TRUE(h.has<foo>());
+    auto e1 = reg.create();
+    reg.emplace<foo>(e1);
+    reg.emplace<bar>(e1);
 
-    h.remove<foo>();
-    ASSERT_FALSE(h.has<foo>());
+    auto e2 = reg.create();
+    reg.emplace<bar>(e2);
+
+    std::size_t count = 0;
+    for (auto entity : reg.view<foo>()) {
+        ++count;
+    }
+    ASSERT_EQ(count, 1);
+}
+
+TEST(registry, registry_all)
+{
+    apx::registry<foo, bar> reg;
+
+    auto e1 = reg.create();
+    reg.emplace<foo>(e1);
+    reg.emplace<bar>(e1);
+
+    auto e2 = reg.create();
+    reg.emplace<bar>(e2);
+
+    std::size_t count = 0;
+    for (auto entity : reg.all()) {
+        ++count;
+    }
+    ASSERT_EQ(count, 2);
 }
