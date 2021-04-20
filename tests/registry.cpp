@@ -15,6 +15,22 @@ TEST(registry, entity_invalid_after_destroying)
     ASSERT_FALSE(reg.valid(e));
 }
 
+TEST(registry, views)
+{
+    apx::registry<foo, bar> reg;
+
+    auto e1 = reg.create();
+    auto e2 = reg.create();
+
+    reg.emplace<foo>(e1);
+
+    std::size_t count = 0;
+    for (auto entity : reg.view<foo>()) {
+        ++count;
+    }
+    ASSERT_EQ(count, 1);
+}
+
 TEST(registry, size_of_registry)
 {
     apx::registry<foo, bar> reg;

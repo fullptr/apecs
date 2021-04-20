@@ -67,6 +67,12 @@ public:
 
     void return_void() {}
 
+    std::suspend_always yield_value(value_type& value) noexcept
+    {
+        d_val = std::addressof(value);
+        return {};
+    }
+
     std::suspend_always yield_value(value_type&& value) noexcept
     {
         d_val = std::addressof(value);
@@ -570,7 +576,7 @@ public:
     apx::generator<apx::entity> view()
     {
         for (auto [index, component] : get_component_set<T>().fast()) {
-            apx::entity = d_entities[index];
+            apx::entity& entity = d_entities[index];
             if ((has<Ts>(entity) && ...)) {
                 co_yield entity;
             }
