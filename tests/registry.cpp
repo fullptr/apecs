@@ -71,7 +71,7 @@ TEST(registry, on_remove_callback)
     ASSERT_EQ(count, 1);
 }
 
-TEST(registry, on_remove_callback_reigstry_destructs)
+TEST(registry, on_remove_callback_registry_destructs)
 {
     std::size_t count = 0;
 
@@ -88,6 +88,25 @@ TEST(registry, on_remove_callback_reigstry_destructs)
         reg.add<foo>(e2, {});
     }
 
+    ASSERT_EQ(count, 2);
+}
+
+TEST(registry, on_remove_callback_registry_cleared)
+{
+    std::size_t count = 0;
+
+    apx::registry<foo, bar> reg;
+    reg.on_remove<foo>([&](apx::entity, const foo& component) {
+        ++count;
+    });
+
+    auto e1 = reg.create();
+    reg.add<foo>(e1, {});
+
+    auto e2 = reg.create();
+    reg.add<foo>(e2, {});
+
+    reg.clear();
     ASSERT_EQ(count, 2);
 }
 
@@ -126,4 +145,40 @@ TEST(registry, test_noexcept_get)
 
     bar* bar_get = reg.get_if<bar>(e);
     ASSERT_EQ(bar_get, nullptr);
+}
+
+TEST(registry, registry_view)
+{
+    apx::registry<foo, bar> reg;
+
+    auto e1 = reg.create();
+    reg.emplace<foo>(e1);
+    reg.emplace<bar>(e1);
+
+    auto e2 = reg.create();
+    reg.emplace<bar>(e2);
+
+    std::size_t count = 0;
+    for (auto entity : reg.view<foo>()) {
+        ++count;
+    }
+    ASSERT_EQ(count, 1);
+}
+
+TEST(registry, registry_all)
+{
+    apx::registry<foo, bar> reg;
+
+    auto e1 = reg.create();
+    reg.emplace<foo>(e1);
+    reg.emplace<bar>(e1);
+
+    auto e2 = reg.create();
+    reg.emplace<bar>(e2);
+
+    std::size_t count = 0;
+    for (auto entity : reg.all()) {
+        ++count;
+    }
+    ASSERT_EQ(count, 2);
 }

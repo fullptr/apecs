@@ -67,6 +67,12 @@ public:
 
     void return_void() {}
 
+    std::suspend_always yield_value(value_type& value) noexcept
+    {
+        d_val = std::addressof(value);
+        return {};
+    }
+
     std::suspend_always yield_value(value_type&& value) noexcept
     {
         d_val = std::addressof(value);
@@ -391,7 +397,7 @@ private:
     void remove(apx::entity entity, apx::sparse_set<Comp>& component_set)
     {
         if (has<Comp>(entity)) {
-            for (auto cb : std::get<std::vector<callback_t<Comp>>>(d_on_remove)) {
+            for (auto& cb : std::get<std::vector<callback_t<Comp>>>(d_on_remove)) {
                 cb(entity, get<Comp>(entity));
             }
             component_set.erase(apx::to_index(entity));
@@ -471,27 +477,13 @@ public:
     }
 
     template <typename Comp>
-    Comp& add(apx::entity entity, const Comp& component)
-    {
-        static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
-        assert(valid(entity));
-
-        auto& comp_set = get_component_set<Comp>();
-        auto& ret = comp_set.insert(apx::to_index(entity), component);
-        for (auto cb : std::get<std::vector<callback_t<Comp>>>(d_on_add)) {
-            cb(entity, ret);
-        }
-        return ret;
-    }
-
-    template <typename Comp>
     Comp& add(apx::entity entity, Comp&& component)
     {
         static_assert(apx::meta::tuple_contains<apx::sparse_set<Comp>, tuple_type>::value);
         assert(valid(entity));
 
         auto& comp_set = get_component_set<Comp>();
-        auto& ret = comp_set.insert(apx::to_index(entity), std::move(component));
+        auto& ret = comp_set.insert(apx::to_index(entity), std::forward<Comp>(component));
         for (auto cb : std::get<std::vector<callback_t<Comp>>>(d_on_add)) {
             cb(entity, ret);
         }
@@ -570,7 +562,7 @@ public:
     apx::generator<apx::entity> view()
     {
         for (auto [index, component] : get_component_set<T>().fast()) {
-            apx::entity = d_entities[index];
+            apx::entity& entity = d_entities[index];
             if ((has<Ts>(entity) && ...)) {
                 co_yield entity;
             }
@@ -581,38 +573,38 @@ public:
 template <typename... Comps>
 class handle
 {
-    apx::registry<Comps...>* registry;
-    apx::entity              entity;
+    apx::registry<Comps...>* d_registry;
+    apx::entity              d_entity;
 
 public:
-    handle(apx::registry<Comps...>& r, apx::entity e) : registry(&r), entity(e) {}
+    handle(apx::registry<Comps...>& r, apx::entity e) : d_registry(&r), d_entity(e) {}
 
-    bool valid() noexcept { return registry->valid(entity); }
-    void destroy() { registry->destroy(entity); }
-
-    template <typename Comp>
-    Comp& add(const Comp& component) { return registry->add<Comp>(entity, component); }
+    bool valid() noexcept { return d_registry->valid(d_entity); }
+    void destroy() { d_registry->destroy(d_entity); }
 
     template <typename Comp>
-    Comp& add(Comp&& component) { return registry->add<Comp>(entity, std::move(component)); }
+    Comp& add(const Comp& component) { return d_registry->template add<Comp>(d_entity, component); }
+
+    template <typename Comp>
+    Comp& add(Comp&& component) { return d_registry->template add<Comp>(d_entity, std::move(component)); }
 
     template <typename Comp, typename... Args>
-    Comp& emplace(Args&&... args) { return registry->emplace<Comp>(entity, std::forward<Args>(args)...); }
+    Comp& emplace(Args&&... args) { return d_registry->template emplace<Comp>(d_entity, std::forward<Args>(args)...); }
 
     template <typename Comp>
-    void remove() { registry->remove<Comp>(entity); }
+    void remove() { d_registry->template remove<Comp>(d_entity); }
 
     template <typename Comp>
-    bool has() { return registry->has<Comp>(entity); }
+    bool has() { return d_registry->template has<Comp>(d_entity); }
 
     template <typename Comp>
-    Comp& get() { return registry->get<Comp>(entity); }
+    Comp& get() { return d_registry->template get<Comp>(d_entity); }
 
     template <typename Comp>
-    const Comp& get() const { return registry->get<Comp>(entity); }
+    const Comp& get() const { return d_registry->template get<Comp>(d_entity); }
 
     template <typename Comp>
-    Comp* get_if() noexcept { return registry->get_if<Comp>(entity); }
+    Comp* get_if() noexcept { return d_registry->template get_if<Comp>(d_entity); }
 };
 
 template <typename... Comps>

@@ -10,6 +10,7 @@ add_executable(
     ./tests/generator.cpp
     ./tests/sparse_set.cpp
     ./tests/registry.cpp
+    ./tests/handle.cpp
 )
 
 target_link_libraries(
