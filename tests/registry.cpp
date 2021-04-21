@@ -1,7 +1,9 @@
 #include "apecs.hpp"
 #include <gtest/gtest.h>
 
-struct foo {};
+struct foo {
+    int value = 0;
+};
 struct bar {};
 
 TEST(registry, entity_invalid_after_destroying)
@@ -147,7 +149,7 @@ TEST(registry, test_noexcept_get)
     ASSERT_EQ(bar_get, nullptr);
 }
 
-TEST(registry, registry_view)
+TEST(registry_view, view_for_loop)
 {
     apx::registry<foo, bar> reg;
 
@@ -165,7 +167,45 @@ TEST(registry, registry_view)
     ASSERT_EQ(count, 1);
 }
 
-TEST(registry, registry_all)
+TEST(registry_view, view_callback)
+{
+    apx::registry<foo, bar> reg;
+
+    auto e1 = reg.create();
+    reg.emplace<foo>(e1);
+    reg.emplace<bar>(e1);
+
+    auto e2 = reg.create();
+    reg.emplace<bar>(e2);
+
+    std::size_t count = 0;
+    reg.view<foo>([&](apx::entity) {
+        ++count;
+    });
+    ASSERT_EQ(count, 1);
+}
+
+TEST(registry_view, view_extended_callback)
+{
+    apx::registry<foo, bar> reg;
+
+    auto e1 = reg.create();
+    reg.emplace<foo>(e1);
+    reg.emplace<bar>(e1);
+
+    auto e2 = reg.create();
+    reg.emplace<bar>(e2);
+
+    std::size_t count = 0;
+    reg.view<foo>([&](apx::entity, foo& comp) {
+        ++count;
+        comp.value = 10;
+    });
+    ASSERT_EQ(count, 1);
+    ASSERT_EQ(reg.get<foo>(e1).value, 10);
+}
+
+TEST(registry_all, all_for_loop)
 {
     apx::registry<foo, bar> reg;
 
@@ -180,5 +220,23 @@ TEST(registry, registry_all)
     for (auto entity : reg.all()) {
         ++count;
     }
+    ASSERT_EQ(count, 2);
+}
+
+TEST(registry_all, all_callback)
+{
+    apx::registry<foo, bar> reg;
+
+    auto e1 = reg.create();
+    reg.emplace<foo>(e1);
+    reg.emplace<bar>(e1);
+
+    auto e2 = reg.create();
+    reg.emplace<bar>(e2);
+
+    std::size_t count = 0;
+    reg.all([&](apx::entity) {
+        ++count;
+    });
     ASSERT_EQ(count, 2);
 }
