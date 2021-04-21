@@ -35,15 +35,6 @@ template <typename T> struct tag
     static T type(); // Not implmented, to be used with decltype 
 };
 
-template <typename T, typename... Rest>
-struct get_first
-{
-    using type = T;
-};
-
-template <typename T, typename... Rest>
-using get_first_t = typename get_first<T, Rest...>::type;
-
 }
 
 template <typename T> class generator;
