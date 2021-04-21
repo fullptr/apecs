@@ -86,15 +86,21 @@ for (auto entity : registry.view<transform, mesh>()) {
 ```
 When iterating over all entities, the iteration is done over the internal entity sparse set. When iterating over a view, we iterate over the sparse set of the first specified component, which can result in a much faster loop. Because of this, if you know that one of the component types is rarer than the others, put that as the first component.
 
-If you prefer a more functional approach, `apx::generator<T>` also provides an `each(Function&& f)` function to allow for the following
+If you prefer a more functional approach, `all` and `view` may also accept lambdas:
 ```cpp
-registry.all().each([](auto entity) {
+registry.all([](auto entity) {
   ...
 });
 ```
 and
 ```cpp
-registry.view<transform, mesh>().each([](auto entity) {
+registry.view<transform, mesh>(auto entity) {
+  ...
+});
+```
+There is also an "extended" version of `view` to access the components more easily:
+```cpp
+registry.view<transform, mesh>(auto entity, const transform& t, const mesh& m) {
   ...
 });
 ```
