@@ -8,7 +8,6 @@
 #include <functional>
 #include <tuple>
 #include <utility>
-#include <variant>
 #include <vector>
 
 namespace apx {
@@ -32,7 +31,7 @@ constexpr void for_each(Tuple&& tuple, F&& f)
 
 template <typename T> struct tag
 {
-    static T type(); // Not implmented, to be used with decltype 
+    static T type(); // Not implmented, to be used with decltype
 };
 
 }
@@ -114,18 +113,18 @@ public:
         if (d_coroutine) { d_coroutine.destroy(); }
     }
 
-    iterator begin()
+    [[nodiscard]] iterator begin()
     {
         advance();
         return iterator{*this};
     }
 
-    iterator::sentinel end() noexcept
+    [[nodiscard]] iterator::sentinel end() noexcept
     {
         return {};
     }
 
-    bool valid() const noexcept
+    [[nodiscard]] bool valid() const noexcept
     {
         return d_coroutine && !d_coroutine.done();
     }
@@ -140,7 +139,7 @@ public:
         }
     }
 
-    value_type& value() const
+    [[nodiscard]] value_type& value() const
     {
         return d_coroutine.promise().value();
     }
@@ -165,7 +164,7 @@ public:
         : d_owner(owner)
     {}
 
-    friend bool operator==(const generator_iterator& it, sentinel)
+    friend bool operator==(const generator_iterator& it, sentinel) noexcept
     {
         return !it.d_owner.valid();
     }
@@ -178,12 +177,12 @@ public:
 
     generator_iterator& operator++(int) { return operator++(); }
 
-    value_type& operator*() const noexcept
+    [[nodiscard]] value_type& operator*() const noexcept
     {
         return d_owner.value();
     }
 
-    value_type* operator->() const noexcept
+    [[nodiscard]] value_type* operator->() const noexcept
     {
         return std::addressof(operator*());
     }
@@ -210,7 +209,7 @@ private:
     sparse_type d_sparse;
 
     // Grows the sparse set so that the given index becomes valid.
-    constexpr void assure(index_type index)
+    constexpr void assure(const index_type index)
     {
         assert(!has(index));
         if (d_sparse.size() <= index) {
@@ -219,18 +218,18 @@ private:
     }
 
 public:
-    sparse_set() = default;
+    constexpr sparse_set() noexcept = default;
 
-    // Inserts the given value into the specified index. If a value already
-    // exists at that index, it is overwritten.
-    constexpr value_type& insert(index_type index, const value_type& value)
+    // Inserts the given value into the specified index. It is asserted that
+    // no previous value exists at the index (see assert in assure()).
+    constexpr value_type& insert(const index_type index, const value_type& value)
     {
         assure(index);
         d_sparse[index] = d_packed.size();
         return d_packed.emplace_back(index, value).second;
     }
 
-    constexpr value_type& insert(index_type index, value_type&& value)
+    constexpr value_type& insert(const index_type index, value_type&& value)
     {
         assure(index);
         d_sparse[index] = d_packed.size();
@@ -238,7 +237,7 @@ public:
     }
 
     template <typename... Args>
-    constexpr value_type& emplace(index_type index, Args&&... args)
+    constexpr value_type& emplace(const index_type index, Args&&... args)
     {
         assure(index);
         d_sparse[index] = d_packed.size();
@@ -248,7 +247,7 @@ public:
     }
 
     // Returns true if the specified index contains a value, and false otherwise.
-    [[nodiscard]] bool has(index_type index) const
+    [[nodiscard]] bool has(const index_type index) const
     {
         return index < d_sparse.size() && d_sparse[index] != EMPTY;
     }
@@ -262,7 +261,7 @@ public:
 
     // Removes the value at the specified index. The structure may reorder
     // itself to maintain contiguity for iteration.
-    void erase(index_type index)
+    void erase(const index_type index)
     {
         assert(has(index));
 
@@ -277,7 +276,7 @@ public:
         d_packed.pop_back();
 
         // Get the index of the outgoing value within the elements vector.
-        std::size_t packed_index = d_sparse[index];
+        const std::size_t packed_index = d_sparse[index];
         d_sparse[index] = EMPTY;
 
         // Overwrite the outgoing value with the back value.
@@ -301,13 +300,13 @@ public:
         return d_packed.size();
     }
 
-    value_type& operator[](index_type index)
+    [[nodiscard]] value_type& operator[](const index_type index)
     {
         assert(has(index));
         return d_packed[d_sparse[index]].second;
     }
 
-    const value_type& operator[](index_type index) const
+    [[nodiscard]] const value_type& operator[](const index_type index) const
     {
         assert(has(index));
         return d_packed[d_sparse[index]].second;
@@ -340,20 +339,20 @@ using version_t = std::uint32_t;
 
 static constexpr apx::entity null{std::numeric_limits<std::uint64_t>::max()};
 
-inline std::pair<index_t, version_t> split(apx::entity id)
+inline std::pair<index_t, version_t> split(const apx::entity id)
 {
     using Int = std::underlying_type_t<apx::entity>;
-    Int id_int = static_cast<Int>(id);
+    const Int id_int = static_cast<Int>(id);
     return {(index_t)(id_int >> 32), (version_t)id_int};
 }
 
-inline apx::entity combine(index_t i, version_t v)
+inline apx::entity combine(const index_t i, const version_t v)
 {
     using Int = std::underlying_type_t<apx::entity>;
     return static_cast<apx::entity>(((Int)i << 32) + (Int)v);
 }
 
-inline apx::index_t to_index(apx::entity entity)
+inline apx::index_t to_index(const apx::entity entity)
 {
     return apx::split(entity).first;
 }
@@ -385,7 +384,7 @@ private:
     std::tuple<std::vector<callback_t<Comps>>...> d_on_remove;
 
     template <typename Comp>
-    void remove(apx::entity entity, apx::sparse_set<Comp>& component_set)
+    void remove(const apx::entity entity, apx::sparse_set<Comp>& component_set)
     {
         if (has<Comp>(entity)) {
             for (auto& cb : std::get<std::vector<callback_t<Comp>>>(d_on_remove)) {
@@ -396,7 +395,13 @@ private:
     }
 
     template <typename Comp>
-    apx::sparse_set<Comp>& get_comps()
+    [[nodiscard]] apx::sparse_set<Comp>& get_comps()
+    {
+        return std::get<apx::sparse_set<Comp>>(d_components);
+    }
+
+    template <typename Comp>
+    [[nodiscard]] const apx::sparse_set<Comp>& get_comps() const
     {
         return std::get<apx::sparse_set<Comp>>(d_components);
     }
@@ -419,7 +424,7 @@ public:
         std::get<std::vector<callback_t<Comp>>>(d_on_remove).push_back(std::move(callback));
     }
 
-    apx::entity create()
+    [[nodiscard]] apx::entity create()
     {
         index_t index = (index_t)d_entities.size();
         version_t version = 0;
@@ -429,20 +434,20 @@ public:
             ++version;
         }
 
-        apx::entity id = combine(index, version);
+        const apx::entity id = combine(index, version);
         d_entities.insert(index, id);
         return id;
     }
 
-    [[nodiscard]] bool valid(apx::entity entity) noexcept
+    [[nodiscard]] bool valid(const apx::entity entity) const noexcept
     {
-        apx::index_t index = apx::to_index(entity);
+        const apx::index_t index = apx::to_index(entity);
         return entity != apx::null
             && d_entities.has(index)
             && d_entities[index] == entity;
     }
 
-    void destroy(apx::entity entity)
+    void destroy(const apx::entity entity)
     {
         assert(valid(entity));
         apx::meta::for_each(d_components, [&](auto& comp_set) {
@@ -453,7 +458,7 @@ public:
         d_entities.erase(apx::to_index(entity));
     }
 
-    [[nodiscard]] std::size_t size() const
+    [[nodiscard]] std::size_t size() const noexcept
     {
         return d_entities.size();
     }
@@ -468,7 +473,7 @@ public:
     }
 
     template <typename Comp>
-    Comp& add(apx::entity entity, Comp&& component)
+    Comp& add(const apx::entity entity, Comp&& component)
     {
         static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
@@ -482,7 +487,7 @@ public:
     }
 
     template <typename Comp, typename... Args>
-    Comp& emplace(apx::entity entity, Args&&... args)
+    Comp& emplace(const apx::entity entity, Args&&... args)
     {
         static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
@@ -496,27 +501,27 @@ public:
     }
 
     template <typename Comp>
-    void remove(apx::entity entity)
+    void remove(const apx::entity entity)
     {
         static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
-        
+
         auto& comp_set = get_comps<Comp>();
         return remove(entity, comp_set);
     }
 
     template <typename Comp>
-    bool has(apx::entity entity)
+    [[nodiscard]] bool has(const apx::entity entity) const noexcept
     {
         static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
 
-        auto& comp_set = get_comps<Comp>();
+        const auto& comp_set = get_comps<Comp>();
         return comp_set.has(apx::to_index(entity));
     }
 
     template <typename Comp>
-    Comp& get(apx::entity entity)
+    [[nodiscard]] Comp& get(const apx::entity entity) noexcept
     {
         static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(has<Comp>(entity));
@@ -526,7 +531,7 @@ public:
     }
 
     template <typename Comp>
-    const Comp& get(apx::entity entity) const
+    [[nodiscard]] const Comp& get(const apx::entity entity) const noexcept
     {
         static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(has<Comp>(entity));
@@ -536,30 +541,31 @@ public:
     }
 
     template <typename Comp>
-    Comp* get_if(apx::entity entity) noexcept
+    [[nodiscard]] Comp* get_if(const apx::entity entity) noexcept
     {
         static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         return has<Comp>(entity) ? &get<Comp>(entity) : nullptr;
     }
 
-    apx::generator<apx::entity> all()
+    [[nodiscard]] apx::generator<apx::entity> all() noexcept
     {
         for (auto [index, entity] : d_entities.fast()) {
             co_yield entity;
         }
     }
 
-    void all(const std::function<void(apx::entity)>& cb) {
+    void all(const std::function<void(apx::entity)>& cb)
+    {
         for (apx::entity entity : all()) {
             cb(entity);
         }
     }
 
     template <typename T, typename... Ts>
-    apx::generator<apx::entity> view()
+    [[nodiscard]] apx::generator<apx::entity> view()
     {
         for (auto [index, component] : get_comps<T>().fast()) {
-            apx::entity& entity = d_entities[index];
+            apx::entity entity = d_entities[index];
             if ((has<Ts>(entity) && ...)) {
                 co_yield entity;
             }
@@ -590,9 +596,9 @@ class handle
     apx::entity              d_entity;
 
 public:
-    handle(apx::registry<Comps...>& r, apx::entity e) : d_registry(&r), d_entity(e) {}
+    handle(apx::registry<Comps...>& r, const apx::entity e) : d_registry(&r), d_entity(e) {}
 
-    bool valid() noexcept { return d_registry->valid(d_entity); }
+    [[nodiscard]] bool valid() noexcept { return d_registry->valid(d_entity); }
     void destroy() { d_registry->destroy(d_entity); }
 
     template <typename Comp>
@@ -608,16 +614,16 @@ public:
     void remove() { d_registry->template remove<Comp>(d_entity); }
 
     template <typename Comp>
-    bool has() { return d_registry->template has<Comp>(d_entity); }
+    [[nodiscard]] bool has() noexcept { return d_registry->template has<Comp>(d_entity); }
 
     template <typename Comp>
-    Comp& get() { return d_registry->template get<Comp>(d_entity); }
+    [[nodiscard]] Comp& get() noexcept { return d_registry->template get<Comp>(d_entity); }
 
     template <typename Comp>
-    const Comp& get() const { return d_registry->template get<Comp>(d_entity); }
+    [[nodiscard]] const Comp& get() const noexcept { return d_registry->template get<Comp>(d_entity); }
 
     template <typename Comp>
-    Comp* get_if() noexcept { return d_registry->template get_if<Comp>(d_entity); }
+    [[nodiscard]] Comp* get_if() noexcept { return d_registry->template get_if<Comp>(d_entity); }
 };
 
 template <typename... Comps>
