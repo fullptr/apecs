@@ -8,7 +8,6 @@
 #include <functional>
 #include <tuple>
 #include <utility>
-#include <variant>
 #include <vector>
 
 namespace apx {
