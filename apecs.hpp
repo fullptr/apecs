@@ -221,8 +221,8 @@ private:
 public:
     sparse_set() = default;
 
-    // Inserts the given value into the specified index. If a value already
-    // exists at that index, it is overwritten.
+    // Inserts the given value into the specified index. It is asserted that
+    // no previous value exists at the index (see assert in assure()).
     constexpr value_type& insert(index_type index, const value_type& value)
     {
         assure(index);
