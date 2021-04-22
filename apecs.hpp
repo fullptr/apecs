@@ -32,7 +32,7 @@ constexpr void for_each(Tuple&& tuple, F&& f)
 
 template <typename T> struct tag
 {
-    static T type(); // Not implmented, to be used with decltype 
+    static T type(); // Not implmented, to be used with decltype
 };
 
 }
@@ -500,7 +500,7 @@ public:
     {
         static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
-        
+
         auto& comp_set = get_comps<Comp>();
         return remove(entity, comp_set);
     }
