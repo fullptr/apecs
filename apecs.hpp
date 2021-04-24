@@ -157,21 +157,30 @@ public:
     struct sentinel {};
 
 private:
-    generator<T>& d_owner;
+    generator<T>* d_owner;
 
 public:
     explicit generator_iterator(generator<T>& owner) noexcept
-        : d_owner(owner)
-    {}
+        : d_owner(&owner)
+    {
+        static_assert(std::is_copy_assignable_v<generator_iterator<T>>);
+        static_assert(std::is_trivially_destructible_v<generator_iterator<T>>);
+    }
+
+    generator_iterator& operator=(const generator_iterator& other)
+    {
+        d_owner = other.d_owner;
+        return *this;
+    }
 
     friend bool operator==(const generator_iterator& it, sentinel) noexcept
     {
-        return !it.d_owner.valid();
+        return !it.d_owner->valid();
     }
 
     generator_iterator& operator++()
     {
-        d_owner.advance();
+        d_owner->advance();
         return *this;
     }
 
@@ -179,7 +188,7 @@ public:
 
     [[nodiscard]] value_type& operator*() const noexcept
     {
-        return d_owner.value();
+        return d_owner->value();
     }
 
     [[nodiscard]] value_type* operator->() const noexcept
