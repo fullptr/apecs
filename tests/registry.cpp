@@ -250,28 +250,28 @@ TEST(registry, test_add)
     apx::registry<foo> reg;
 
     { // lvalue ref, explicit type
-        apx::entity h = reg.create();
+        apx::entity e = reg.create();
         foo f;
-        reg.add<foo>(h, f);
-        ASSERT_TRUE(reg.has<foo>(h));
+        reg.add<foo>(e, f);
+        ASSERT_TRUE(reg.has<foo>(e));
     }
 
     { // rvalue ref, explicit type
-        apx::entity h = reg.create();
-        reg.add<foo>(h, {});
-        ASSERT_TRUE(reg.has<foo>(h));
+        apx::entity e = reg.create();
+        reg.add<foo>(e, {});
+        ASSERT_TRUE(reg.has<foo>(e));
     }
 
     { // lvalue ref, type deduced
-        apx::entity h = reg.create();
+        apx::entity e = reg.create();
         foo f;
-        reg.add(h, f);
-        ASSERT_TRUE(reg.has<foo>(h));
+        reg.add(e, f);
+        ASSERT_TRUE(reg.has<foo>(e));
     }
 
     { // rvalue ref, type deduced
-        apx::entity h = reg.create();
-        reg.add(h, foo{});
-        ASSERT_TRUE(reg.has<foo>(h));
+        apx::entity e = reg.create();
+        reg.add(e, foo{});
+        ASSERT_TRUE(reg.has<foo>(e));
     }
 }

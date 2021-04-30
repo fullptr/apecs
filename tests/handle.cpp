@@ -48,3 +48,24 @@ TEST(handle, test_add)
         ASSERT_TRUE(h.has<foo>());
     }
 }
+
+TEST(handle, test_erase_if)
+// Test removing all but the first element.
+{
+    apx::registry<foo> reg;
+    (void)reg.create();
+    (void)reg.create();
+    (void)reg.create();
+    (void)reg.create();
+
+    bool passed_first = false;
+    reg.erase_if([&](apx::entity e) {
+        if (!passed_first) {
+            passed_first = true;
+            return false;
+        }
+        return true;
+    });
+
+    ASSERT_EQ(reg.size(), 1);
+}
