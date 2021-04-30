@@ -179,7 +179,7 @@ TEST(registry_view, view_callback)
     reg.emplace<bar>(e2);
 
     std::size_t count = 0;
-    reg.view<foo>([&](apx::entity, const foo&) {
+    reg.view<foo>([&](apx::entity) {
         ++count;
     });
     ASSERT_EQ(count, 1);

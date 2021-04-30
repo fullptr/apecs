@@ -615,6 +615,13 @@ public:
     }
 
     template <typename... Ts>
+    void view(const std::function<void(apx::entity)>& cb) {
+        for (apx::entity entity : view<Ts...>()) {
+            cb(entity);
+        }
+    }
+
+    template <typename... Ts>
     void view(const std::function<void(apx::entity, Ts&...)>& cb) {
         for (apx::entity entity : view<Ts...>()) {
             cb(entity, get<Ts>(entity)...);
