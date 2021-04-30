@@ -17,3 +17,12 @@ TEST(handle, handle_basics)
 
     ASSERT_EQ(h.get_if<foo>(), nullptr);
 }
+
+TEST(handle, test_add)
+{
+    apx::registry<foo> reg;
+    apx::handle h = apx::create_from(reg);
+
+    foo f;
+    h.add<foo>(f);
+}
