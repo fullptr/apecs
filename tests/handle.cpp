@@ -17,3 +17,55 @@ TEST(handle, handle_basics)
 
     ASSERT_EQ(h.get_if<foo>(), nullptr);
 }
+
+TEST(handle, test_add)
+{
+    apx::registry<foo> reg;
+
+    { // lvalue ref, explicit type
+        apx::handle h = apx::create_from(reg);
+        foo f;
+        h.add<foo>(f);
+        ASSERT_TRUE(h.has<foo>());
+    }
+
+    { // rvalue ref, explicit type
+        apx::handle h = apx::create_from(reg);
+        h.add<foo>({});
+        ASSERT_TRUE(h.has<foo>());
+    }
+
+    { // lvalue ref, type deduced
+        apx::handle h = apx::create_from(reg);
+        foo f;
+        h.add(f);
+        ASSERT_TRUE(h.has<foo>());
+    }
+
+    { // rvalue ref, type deduced
+        apx::handle h = apx::create_from(reg);
+        h.add(foo{});
+        ASSERT_TRUE(h.has<foo>());
+    }
+}
+
+TEST(handle, test_erase_if)
+// Test removing all but the first element.
+{
+    apx::registry<foo> reg;
+    (void)reg.create();
+    (void)reg.create();
+    (void)reg.create();
+    (void)reg.create();
+
+    bool passed_first = false;
+    reg.erase_if([&](apx::entity e) {
+        if (!passed_first) {
+            passed_first = true;
+            return false;
+        }
+        return true;
+    });
+
+    ASSERT_EQ(reg.size(), 1);
+}
