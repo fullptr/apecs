@@ -240,3 +240,38 @@ TEST(registry_all, all_callback)
     });
     ASSERT_EQ(count, 2);
 }
+
+TEST(registry, test_add)
+// registry::add was actually broken when trying to call with an lvalue reference, but no
+// other tests at the time tested this; they either used emplace passed an rvalue to add
+// which worked fine. This test makes sure add works as expected, and allow both explicit
+// typing and type deduction.
+{
+    apx::registry<foo> reg;
+
+    { // lvalue ref, explicit type
+        apx::entity h = reg.create();
+        foo f;
+        reg.add<foo>(h, f);
+        ASSERT_TRUE(reg.has<foo>(h));
+    }
+
+    { // rvalue ref, explicit type
+        apx::entity h = reg.create();
+        reg.add<foo>(h, {});
+        ASSERT_TRUE(reg.has<foo>(h));
+    }
+
+    { // lvalue ref, type deduced
+        apx::entity h = reg.create();
+        foo f;
+        reg.add(h, f);
+        ASSERT_TRUE(reg.has<foo>(h));
+    }
+
+    { // rvalue ref, type deduced
+        apx::entity h = reg.create();
+        reg.add(h, foo{});
+        ASSERT_TRUE(reg.has<foo>(h));
+    }
+}

@@ -21,8 +21,30 @@ TEST(handle, handle_basics)
 TEST(handle, test_add)
 {
     apx::registry<foo> reg;
-    apx::handle h = apx::create_from(reg);
 
-    foo f;
-    h.add<foo>(f);
+    { // lvalue ref, explicit type
+        apx::handle h = apx::create_from(reg);
+        foo f;
+        h.add<foo>(f);
+        ASSERT_TRUE(h.has<foo>());
+    }
+
+    { // rvalue ref, explicit type
+        apx::handle h = apx::create_from(reg);
+        h.add<foo>({});
+        ASSERT_TRUE(h.has<foo>());
+    }
+
+    { // lvalue ref, type deduced
+        apx::handle h = apx::create_from(reg);
+        foo f;
+        h.add(f);
+        ASSERT_TRUE(h.has<foo>());
+    }
+
+    { // rvalue ref, type deduced
+        apx::handle h = apx::create_from(reg);
+        h.add(foo{});
+        ASSERT_TRUE(h.has<foo>());
+    }
 }
