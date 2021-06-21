@@ -388,6 +388,8 @@ public:
     template <typename T>
     using callback_t = std::function<void(apx::entity, const T&)>;
 
+    using predicate_t = std::function<bool(apx::entity)>;
+
     // A tuple of tag types for metaprogramming purposes
     inline static constexpr std::tuple<apx::meta::tag<Comps>...> tags{};
 
@@ -629,7 +631,7 @@ public:
     }
 
     template <typename... Ts>
-    void erase_if(const std::function<bool(apx::entity)>& cb) {
+    void erase_if(const predicate_t& cb) {
         std::vector<apx::entity> to_delete;
         for (auto entity : view<Ts...>()) {
             if (cb(entity)) { to_delete.push_back(entity); }
@@ -637,6 +639,17 @@ public:
         for (auto entity : to_delete) {
             destroy(entity);
         }
+    }
+
+    template <typename... Comps>
+    [[nodiscard]] apx::entity find(const predicate_t& predicate = [](apx::entity) { return true; })
+    {
+        for (auto entity : view<Comps...>()) {
+            if (predicate(entity)) {
+                return entity;
+            }
+        }
+        return apx::null;
     }
 };
 
