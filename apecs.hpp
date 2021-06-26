@@ -692,6 +692,13 @@ public:
     template <typename Comp>
     [[nodiscard]] Comp* get_if() noexcept { return d_registry->template get_if<Comp>(d_entity); }
 
+    [[nodiscard]] apx::handle<Comps...>& operator=(const apx::handle<Comps...>& other) noexcept
+    {
+        d_registry = other.d_registry;
+        d_entity = other.d_entity;
+        return *this;
+    }
+    
     [[nodiscard]] bool operator==(const apx::handle<Comps...>& other) const noexcept
     {
         return d_registry == other.d_registry && d_entity == other.d_entity;
