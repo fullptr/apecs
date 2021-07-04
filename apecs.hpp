@@ -361,6 +361,8 @@ enum class entity : std::uint64_t {};
 using index_t = std::uint32_t;
 using version_t = std::uint32_t;
 
+using predicate_t = std::function<bool(apx::entity)>;
+
 static constexpr apx::entity null{std::numeric_limits<std::uint64_t>::max()};
 
 inline std::pair<index_t, version_t> split(const apx::entity id)
@@ -390,8 +392,6 @@ class fixed_registry
 public:
     template <typename T>
     using callback_t = std::function<void(apx::entity, const T&)>;
-
-    using predicate_t = std::function<bool(apx::entity)>;
 
     // A tuple of tag types for metaprogramming purposes
     inline static constexpr std::tuple<apx::tag<Comps>...> tags{};
@@ -916,6 +916,17 @@ public:
         for (apx::entity entity : view<Ts...>()) {
             cb(entity, get<Ts>(entity)...);
         }
+    }
+
+    template <typename... Comps>
+    [[nodiscard]] apx::entity find(const predicate_t& predicate = [](apx::entity) { return true; })
+    {
+        for (auto entity : view<Comps...>()) {
+            if (predicate(entity)) {
+                return entity;
+            }
+        }
+        return apx::null;
     }
 
     template <typename... Ts>
