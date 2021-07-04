@@ -10,7 +10,7 @@ add_executable(
     ./tests/meta.cpp
     ./tests/generator.cpp
     ./tests/sparse_set.cpp
-    ./tests/registry.cpp
+    ./tests/fixed_registry.cpp
     ./tests/handle.cpp
 )
 
