@@ -382,7 +382,7 @@ inline apx::index_t to_index(const apx::entity entity)
 }
 
 template <typename... Comps>
-class handle;
+class fixed_handle;
 
 template <typename... Comps>
 class fixed_registry
@@ -396,7 +396,7 @@ public:
     // A tuple of tag types for metaprogramming purposes
     inline static constexpr std::tuple<apx::tag<Comps>...> tags{};
 
-    using handle_type = apx::handle<Comps...>;
+    using handle_type = apx::fixed_handle<Comps...>;
 
 private:
     using tuple_type = std::tuple<apx::sparse_set<Comps>...>;
@@ -657,14 +657,14 @@ public:
 };
 
 template <typename... Comps>
-class handle
+class fixed_handle
 {
     apx::fixed_registry<Comps...>* d_registry;
     apx::entity                    d_entity;
 
 public:
-    handle(apx::fixed_registry<Comps...>& r, const apx::entity e) : d_registry(&r), d_entity(e) {}
-    explicit constexpr handle() : d_registry(nullptr), d_entity(apx::null) {}
+    fixed_handle(apx::fixed_registry<Comps...>& r, const apx::entity e) : d_registry(&r), d_entity(e) {}
+    explicit constexpr fixed_handle() : d_registry(nullptr), d_entity(apx::null) {}
 
     apx::entity entity() const { return d_entity; }
 
@@ -695,29 +695,29 @@ public:
     template <typename Comp>
     [[nodiscard]] Comp* get_if() noexcept { return d_registry->template get_if<Comp>(d_entity); }
 
-    [[nodiscard]] apx::handle<Comps...>& operator=(const apx::handle<Comps...>& other) noexcept
+    [[nodiscard]] apx::fixed_handle<Comps...>& operator=(const apx::fixed_handle<Comps...>& other) noexcept
     {
         d_registry = other.d_registry;
         d_entity = other.d_entity;
         return *this;
     }
     
-    [[nodiscard]] bool operator==(const apx::handle<Comps...>& other) const noexcept
+    [[nodiscard]] bool operator==(const apx::fixed_handle<Comps...>& other) const noexcept
     {
         return d_registry == other.d_registry && d_entity == other.d_entity;
     }
 
-    [[nodiscard]] bool operator!=(const apx::handle<Comps...>& other) const noexcept { return !(*this == other); }
+    [[nodiscard]] bool operator!=(const apx::fixed_handle<Comps...>& other) const noexcept { return !(*this == other); }
 };
 
 template <typename... Comps>
-inline apx::handle<Comps...> create_from(apx::fixed_registry<Comps...>& registry)
+inline apx::fixed_handle<Comps...> create_from(apx::fixed_registry<Comps...>& registry)
 {
     return {registry, registry.create()};
 }
 
 template <typename... Comps>
-static constexpr apx::handle null_handle{};
+static constexpr apx::fixed_handle null_fixed_handle{};
 
 class registry
 {
@@ -930,14 +930,82 @@ public:
     }
 };
 
+class handle
+{
+    apx::registry* d_registry;
+    apx::entity    d_entity;
+
+public:
+    handle(apx::registry& r, const apx::entity e) : d_registry(&r), d_entity(e) {}
+    explicit constexpr handle() : d_registry(nullptr), d_entity(apx::null) {}
+
+    apx::entity entity() const { return d_entity; }
+
+    [[nodiscard]] bool valid() noexcept { return d_registry->valid(d_entity); }
+    void destroy() { d_registry->destroy(d_entity); }
+
+    template <typename Comp>
+    Comp& add(const Comp& component) { return d_registry->template add<Comp>(d_entity, component); }
+
+    template <typename Comp>
+    Comp& add(Comp&& component) { return d_registry->template add<Comp>(d_entity, std::forward<Comp>(component)); }
+
+    template <typename Comp, typename... Args>
+    Comp& emplace(Args&&... args) { return d_registry->template emplace<Comp>(d_entity, std::forward<Args>(args)...); }
+
+    template <typename Comp>
+    void remove() { d_registry->template remove<Comp>(d_entity); }
+
+    template <typename Comp>
+    [[nodiscard]] bool has() const noexcept { return d_registry->template has<Comp>(d_entity); }
+
+    template <typename Comp>
+    [[nodiscard]] Comp& get() noexcept { return d_registry->template get<Comp>(d_entity); }
+
+    template <typename Comp>
+    [[nodiscard]] const Comp& get() const noexcept { return d_registry->template get<Comp>(d_entity); }
+
+    template <typename Comp>
+    [[nodiscard]] Comp* get_if() noexcept { return d_registry->template get_if<Comp>(d_entity); }
+
+    [[nodiscard]] apx::handle& operator=(const apx::handle& other) noexcept
+    {
+        d_registry = other.d_registry;
+        d_entity = other.d_entity;
+        return *this;
+    }
+    
+    [[nodiscard]] bool operator==(const apx::handle& other) const noexcept
+    {
+        return d_registry == other.d_registry && d_entity == other.d_entity;
+    }
+
+    [[nodiscard]] bool operator!=(const apx::handle& other) const noexcept { return !(*this == other); }
+};
+
+inline apx::handle create_from(apx::registry& registry)
+{
+    return {registry, registry.create()};
+}
+
+static constexpr apx::handle null_handle{};
+
 }
 
 namespace std {
 
 template <typename... Comps>
-struct hash<apx::handle<Comps...>>
+struct hash<apx::fixed_handle<Comps...>>
 {
-    std::size_t operator()(const apx::handle<Comps...>& handle) const {
+    std::size_t operator()(const apx::fixed_handle<Comps...>& fixed_handle) const {
+        return std::hash<apx::entity>{}(fixed_handle.entity());
+    }
+};
+
+template <>
+struct hash<apx::handle>
+{
+    std::size_t operator()(const apx::handle& handle) const {
         return std::hash<apx::entity>{}(handle.entity());
     }
 };
