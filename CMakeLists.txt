@@ -11,6 +11,7 @@ add_executable(
     ./tests/generator.cpp
     ./tests/sparse_set.cpp
     ./tests/fixed_registry.cpp
+    ./tests/fixed_handle.cpp
     ./tests/registry.cpp
     ./tests/handle.cpp
 )

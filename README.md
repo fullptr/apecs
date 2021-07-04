@@ -129,11 +129,9 @@ registry.on_remove<transform>([&](apx::entity entity, const transform& component
 If a registry is cleared, all `on_remove` callbacks are invoked for each entity along the way.
 
 ## Entity Handle
-NOTE: This is only implmented for `apx::fixed_registry`. However, I will most likely rename this to `apx::fixed_handle` and implemement the typeless version too.
-
-To some, a call such as `registry.add<transform>(entity, t)` may feel unnatural and would prefer a more traditional object oriented interface such as `entity.add<transform>(t)`. This is provided via `apx::handle`, a thin wrapper around a registry pointer and an entity. Given a reigstry and an entity, a handle can be created easily
+To some, a call such as `registry.add<transform>(entity, t)` may feel unnatural and would prefer a more traditional object oriented interface such as `entity.add<transform>(t)`. This is provided via `apx::fixed_handle<Comps...>` and `apx::handle`, a thin wrapper around a registry pointer and an entity. Given a reigstry and an entity, a handle can be created easily
 ```cpp
-apx::handle handle{&registry, entity};
+apx::handle handle{registry, entity};
 ```
 To make your code prettier, a helper function is provided to create handles when creating a fresh entity
 ```cpp
@@ -145,8 +143,10 @@ handle.valid();
 handle.destroy();
 
 handle.add<transform>(t);
+handle.emplace<transform>(args...);
 handle.has<transform>();
 handle.get<transform>();
+handle.get_if<transform>();
 handle.remove<transform>();
 ```
 
