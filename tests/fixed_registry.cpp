@@ -118,14 +118,14 @@ TEST(fixed_registry, for_each_type)
     apx::entity e = reg.create();
     std::size_t count = 0;
 
-    apx::meta::for_each(reg.tags, [&](auto&& tag) {
+    apx::for_each(reg.tags, [&](auto&& tag) {
         using T = decltype(tag.type());
         reg.on_add<T>([&](apx::entity entity, const T&) {
             ++count;
         });
     });
 
-    apx::meta::for_each(reg.tags, [&](auto&& tag) {
+    apx::for_each(reg.tags, [&](auto&& tag) {
         using T = decltype(tag.type());
         reg.add<T>(e, {});
     });
