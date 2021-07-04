@@ -6,9 +6,9 @@ struct foo {
 };
 struct bar {};
 
-TEST(registry, entity_invalid_after_destroying)
+TEST(fixed_registry, entity_invalid_after_destroying)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
 
     auto e = reg.create();
     ASSERT_TRUE(reg.valid(e));
@@ -17,9 +17,9 @@ TEST(registry, entity_invalid_after_destroying)
     ASSERT_FALSE(reg.valid(e));
 }
 
-TEST(registry, size_of_registry)
+TEST(fixed_registry, size_of_fixed_registry)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
 
     auto e1 = reg.create();
     ASSERT_EQ(reg.size(), 1);
@@ -37,9 +37,9 @@ TEST(registry, size_of_registry)
     ASSERT_EQ(reg.size(), 0);
 }
 
-TEST(registry, on_add_callback)
+TEST(fixed_registry, on_add_callback)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
     std::size_t count = 0;
     reg.on_add<foo>([&](apx::entity, const foo& component) {
         ++count;
@@ -55,9 +55,9 @@ TEST(registry, on_add_callback)
     ASSERT_EQ(count, 2);
 }
 
-TEST(registry, on_remove_callback)
+TEST(fixed_registry, on_remove_callback)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
     std::size_t count = 0;
     reg.on_remove<foo>([&](apx::entity, const foo& component) {
         ++count;
@@ -73,12 +73,12 @@ TEST(registry, on_remove_callback)
     ASSERT_EQ(count, 1);
 }
 
-TEST(registry, on_remove_callback_registry_destructs)
+TEST(fixed_registry, on_remove_callback_fixed_registry_destructs)
 {
     std::size_t count = 0;
 
     {
-        apx::registry<foo, bar> reg;
+        apx::fixed_registry<foo, bar> reg;
         reg.on_remove<foo>([&](apx::entity, const foo& component) {
             ++count;
         });
@@ -93,11 +93,11 @@ TEST(registry, on_remove_callback_registry_destructs)
     ASSERT_EQ(count, 2);
 }
 
-TEST(registry, on_remove_callback_registry_cleared)
+TEST(fixed_registry, on_remove_callback_fixed_registry_cleared)
 {
     std::size_t count = 0;
 
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
     reg.on_remove<foo>([&](apx::entity, const foo& component) {
         ++count;
     });
@@ -112,9 +112,9 @@ TEST(registry, on_remove_callback_registry_cleared)
     ASSERT_EQ(count, 2);
 }
 
-TEST(registry, for_each_type)
+TEST(fixed_registry, for_each_type)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
     apx::entity e = reg.create();
     std::size_t count = 0;
 
@@ -135,9 +135,9 @@ TEST(registry, for_each_type)
     ASSERT_EQ(count, 2);
 }
 
-TEST(registry, test_noexcept_get)
+TEST(fixed_registry, test_noexcept_get)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
     apx::entity e = reg.create();
 
     reg.add<foo>(e, {});
@@ -149,9 +149,9 @@ TEST(registry, test_noexcept_get)
     ASSERT_EQ(bar_get, nullptr);
 }
 
-TEST(registry_view, view_for_loop)
+TEST(fixed_registry_view, view_for_loop)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
 
     auto e1 = reg.create();
     reg.emplace<foo>(e1);
@@ -167,9 +167,9 @@ TEST(registry_view, view_for_loop)
     ASSERT_EQ(count, 1);
 }
 
-TEST(registry_view, view_callback)
+TEST(fixed_registry_view, view_callback)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
 
     auto e1 = reg.create();
     reg.emplace<foo>(e1);
@@ -185,9 +185,9 @@ TEST(registry_view, view_callback)
     ASSERT_EQ(count, 1);
 }
 
-TEST(registry_view, view_extended_callback)
+TEST(fixed_registry_view, view_extended_callback)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
 
     auto e1 = reg.create();
     reg.emplace<foo>(e1);
@@ -205,9 +205,9 @@ TEST(registry_view, view_extended_callback)
     ASSERT_EQ(reg.get<foo>(e1).value, 10);
 }
 
-TEST(registry_all, all_for_loop)
+TEST(fixed_registry_all, all_for_loop)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
 
     auto e1 = reg.create();
     reg.emplace<foo>(e1);
@@ -223,9 +223,9 @@ TEST(registry_all, all_for_loop)
     ASSERT_EQ(count, 2);
 }
 
-TEST(registry_all, all_callback)
+TEST(fixed_registry_all, all_callback)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
 
     auto e1 = reg.create();
     reg.emplace<foo>(e1);
@@ -241,13 +241,13 @@ TEST(registry_all, all_callback)
     ASSERT_EQ(count, 2);
 }
 
-TEST(registry, test_add)
-// registry::add was actually broken when trying to call with an lvalue reference, but no
+TEST(fixed_registry, test_add)
+// fixed_registry::add was actually broken when trying to call with an lvalue reference, but no
 // other tests at the time tested this; they either used emplace passed an rvalue to add
 // which worked fine. This test makes sure add works as expected, and allow both explicit
 // typing and type deduction.
 {
-    apx::registry<foo> reg;
+    apx::fixed_registry<foo> reg;
 
     { // lvalue ref, explicit type
         apx::entity e = reg.create();

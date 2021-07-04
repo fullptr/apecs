@@ -382,7 +382,7 @@ template <typename... Comps>
 class handle;
 
 template <typename... Comps>
-class registry
+class fixed_registry
 {
 public:
     template <typename T>
@@ -428,7 +428,7 @@ private:
     }
 
 public:
-    ~registry()
+    ~fixed_registry()
     {
         clear();
     }
@@ -643,11 +643,11 @@ public:
 template <typename... Comps>
 class handle
 {
-    apx::registry<Comps...>* d_registry;
-    apx::entity              d_entity;
+    apx::fixed_registry<Comps...>* d_registry;
+    apx::entity                    d_entity;
 
 public:
-    handle(apx::registry<Comps...>& r, const apx::entity e) : d_registry(&r), d_entity(e) {}
+    handle(apx::fixed_registry<Comps...>& r, const apx::entity e) : d_registry(&r), d_entity(e) {}
     explicit constexpr handle() : d_registry(nullptr), d_entity(apx::null) {}
 
     apx::entity entity() const { return d_entity; }
@@ -688,7 +688,7 @@ public:
 };
 
 template <typename... Comps>
-inline apx::handle<Comps...> create_from(apx::registry<Comps...>& registry)
+inline apx::handle<Comps...> create_from(apx::fixed_registry<Comps...>& registry)
 {
     return {registry, registry.create()};
 }
