@@ -6,7 +6,7 @@ struct bar {};
 
 TEST(handle, handle_basics)
 {
-    apx::registry<foo, bar> reg;
+    apx::fixed_registry<foo, bar> reg;
     apx::handle h = apx::create_from(reg);
 
     h.emplace<foo>();
@@ -20,7 +20,7 @@ TEST(handle, handle_basics)
 
 TEST(handle, test_add)
 {
-    apx::registry<foo> reg;
+    apx::fixed_registry<foo> reg;
 
     { // lvalue ref, explicit type
         apx::handle h = apx::create_from(reg);
@@ -52,7 +52,7 @@ TEST(handle, test_add)
 TEST(handle, test_erase_if)
 // Test removing all but the first element.
 {
-    apx::registry<foo> reg;
+    apx::fixed_registry<foo> reg;
     (void)reg.create();
     (void)reg.create();
     (void)reg.create();

@@ -8,7 +8,7 @@ struct bar {};
 
 TEST(registry, entity_invalid_after_destroying)
 {
-    apx::registry<foo, bar> reg;
+    apx::registry reg;
 
     auto e = reg.create();
     ASSERT_TRUE(reg.valid(e));
@@ -19,7 +19,7 @@ TEST(registry, entity_invalid_after_destroying)
 
 TEST(registry, size_of_registry)
 {
-    apx::registry<foo, bar> reg;
+    apx::registry reg;
 
     auto e1 = reg.create();
     ASSERT_EQ(reg.size(), 1);
@@ -37,107 +37,9 @@ TEST(registry, size_of_registry)
     ASSERT_EQ(reg.size(), 0);
 }
 
-TEST(registry, on_add_callback)
-{
-    apx::registry<foo, bar> reg;
-    std::size_t count = 0;
-    reg.on_add<foo>([&](apx::entity, const foo& component) {
-        ++count;
-    });
-
-    auto e1 = reg.create();
-    reg.add<foo>(e1, {});
-    reg.add<bar>(e1, {}); // Should not increase the count
-
-    auto e2 = reg.create();
-    reg.add<foo>(e2, {});
-
-    ASSERT_EQ(count, 2);
-}
-
-TEST(registry, on_remove_callback)
-{
-    apx::registry<foo, bar> reg;
-    std::size_t count = 0;
-    reg.on_remove<foo>([&](apx::entity, const foo& component) {
-        ++count;
-    });
-
-    auto e1 = reg.create();
-    reg.add<foo>(e1, {});
-
-    auto e2 = reg.create();
-    reg.add<foo>(e2, {});
-
-    reg.remove<foo>(e1);
-    ASSERT_EQ(count, 1);
-}
-
-TEST(registry, on_remove_callback_registry_destructs)
-{
-    std::size_t count = 0;
-
-    {
-        apx::registry<foo, bar> reg;
-        reg.on_remove<foo>([&](apx::entity, const foo& component) {
-            ++count;
-        });
-
-        auto e1 = reg.create();
-        reg.add<foo>(e1, {});
-
-        auto e2 = reg.create();
-        reg.add<foo>(e2, {});
-    }
-
-    ASSERT_EQ(count, 2);
-}
-
-TEST(registry, on_remove_callback_registry_cleared)
-{
-    std::size_t count = 0;
-
-    apx::registry<foo, bar> reg;
-    reg.on_remove<foo>([&](apx::entity, const foo& component) {
-        ++count;
-    });
-
-    auto e1 = reg.create();
-    reg.add<foo>(e1, {});
-
-    auto e2 = reg.create();
-    reg.add<foo>(e2, {});
-
-    reg.clear();
-    ASSERT_EQ(count, 2);
-}
-
-TEST(registry, for_each_type)
-{
-    apx::registry<foo, bar> reg;
-    apx::entity e = reg.create();
-    std::size_t count = 0;
-
-    apx::meta::for_each(reg.tags, [&](auto&& tag) {
-        using T = decltype(tag.type());
-        reg.on_add<T>([&](apx::entity entity, const T&) {
-            ++count;
-        });
-    });
-
-    apx::meta::for_each(reg.tags, [&](auto&& tag) {
-        using T = decltype(tag.type());
-        reg.add<T>(e, {});
-    });
-
-    ASSERT_TRUE(reg.has<foo>(e));
-    ASSERT_TRUE(reg.has<bar>(e));
-    ASSERT_EQ(count, 2);
-}
-
 TEST(registry, test_noexcept_get)
 {
-    apx::registry<foo, bar> reg;
+    apx::registry reg;
     apx::entity e = reg.create();
 
     reg.add<foo>(e, {});
@@ -151,7 +53,7 @@ TEST(registry, test_noexcept_get)
 
 TEST(registry_view, view_for_loop)
 {
-    apx::registry<foo, bar> reg;
+    apx::registry reg;
 
     auto e1 = reg.create();
     reg.emplace<foo>(e1);
@@ -169,7 +71,7 @@ TEST(registry_view, view_for_loop)
 
 TEST(registry_view, view_callback)
 {
-    apx::registry<foo, bar> reg;
+    apx::registry reg;
 
     auto e1 = reg.create();
     reg.emplace<foo>(e1);
@@ -187,7 +89,7 @@ TEST(registry_view, view_callback)
 
 TEST(registry_view, view_extended_callback)
 {
-    apx::registry<foo, bar> reg;
+    apx::registry reg;
 
     auto e1 = reg.create();
     reg.emplace<foo>(e1);
@@ -207,7 +109,7 @@ TEST(registry_view, view_extended_callback)
 
 TEST(registry_all, all_for_loop)
 {
-    apx::registry<foo, bar> reg;
+    apx::registry reg;
 
     auto e1 = reg.create();
     reg.emplace<foo>(e1);
@@ -225,7 +127,7 @@ TEST(registry_all, all_for_loop)
 
 TEST(registry_all, all_callback)
 {
-    apx::registry<foo, bar> reg;
+    apx::registry reg;
 
     auto e1 = reg.create();
     reg.emplace<foo>(e1);
@@ -242,12 +144,8 @@ TEST(registry_all, all_callback)
 }
 
 TEST(registry, test_add)
-// registry::add was actually broken when trying to call with an lvalue reference, but no
-// other tests at the time tested this; they either used emplace passed an rvalue to add
-// which worked fine. This test makes sure add works as expected, and allow both explicit
-// typing and type deduction.
 {
-    apx::registry<foo> reg;
+    apx::registry reg;
 
     { // lvalue ref, explicit type
         apx::entity e = reg.create();

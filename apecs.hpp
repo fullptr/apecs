@@ -9,9 +9,14 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+#include <any>
 
 namespace apx {
-namespace meta {
+
+inline std::size_t _type_id_generator = 0;
+
+template <typename T>
+inline const std::size_t type_id = ++_type_id_generator;
 
 template <typename T, typename Tuple>
 struct tuple_contains;
@@ -41,8 +46,6 @@ struct get_first<T, Ts...> { using type = T; };
 
 template <typename... Ts>
 using get_first_t = typename get_first<Ts...>::type;
-
-}
 
 template <typename T> class generator;
 template <typename T> class generator_iterator;
@@ -382,7 +385,7 @@ template <typename... Comps>
 class handle;
 
 template <typename... Comps>
-class registry
+class fixed_registry
 {
 public:
     template <typename T>
@@ -391,7 +394,7 @@ public:
     using predicate_t = std::function<bool(apx::entity)>;
 
     // A tuple of tag types for metaprogramming purposes
-    inline static constexpr std::tuple<apx::meta::tag<Comps>...> tags{};
+    inline static constexpr std::tuple<apx::tag<Comps>...> tags{};
 
     using handle_type = apx::handle<Comps...>;
 
@@ -430,7 +433,7 @@ private:
     }
 
 public:
-    ~registry()
+    ~fixed_registry()
     {
         clear();
     }
@@ -473,7 +476,7 @@ public:
     void destroy(const apx::entity entity)
     {
         assert(valid(entity));
-        apx::meta::for_each(d_components, [&](auto& comp_set) {
+        apx::for_each(d_components, [&](auto& comp_set) {
             remove(entity, comp_set);
         });
 
@@ -499,7 +502,7 @@ public:
     Comp& add(const apx::entity entity, const Comp& component)
     {
         using T = std::remove_cvref_t<Comp>;
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<T>, tuple_type>);
+        static_assert(apx::tuple_contains_v<apx::sparse_set<T>, tuple_type>);
         assert(valid(entity));
 
         auto& comp_set = get_comps<T>();
@@ -514,7 +517,7 @@ public:
     Comp& add(const apx::entity entity, Comp&& component)
     {
         using T = std::remove_cvref_t<Comp>;
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<T>, tuple_type>);
+        static_assert(apx::tuple_contains_v<apx::sparse_set<T>, tuple_type>);
         assert(valid(entity));
 
         auto& comp_set = get_comps<T>();
@@ -528,7 +531,7 @@ public:
     template <typename Comp, typename... Args>
     Comp& emplace(const apx::entity entity, Args&&... args)
     {
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
+        static_assert(apx::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
 
         auto& comp_set = get_comps<Comp>();
@@ -542,7 +545,7 @@ public:
     template <typename Comp>
     void remove(const apx::entity entity)
     {
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
+        static_assert(apx::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
 
         auto& comp_set = get_comps<Comp>();
@@ -552,7 +555,7 @@ public:
     template <typename Comp>
     [[nodiscard]] bool has(const apx::entity entity) const noexcept
     {
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
+        static_assert(apx::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
 
         const auto& comp_set = get_comps<Comp>();
@@ -562,7 +565,7 @@ public:
     template <typename Comp>
     [[nodiscard]] Comp& get(const apx::entity entity) noexcept
     {
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
+        static_assert(apx::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(has<Comp>(entity));
 
         auto& comp_set = get_comps<Comp>();
@@ -572,7 +575,7 @@ public:
     template <typename Comp>
     [[nodiscard]] const Comp& get(const apx::entity entity) const noexcept
     {
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
+        static_assert(apx::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(has<Comp>(entity));
 
         auto& comp_set = get_comps<Comp>();
@@ -582,7 +585,7 @@ public:
     template <typename Comp>
     [[nodiscard]] Comp* get_if(const apx::entity entity) noexcept
     {
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
+        static_assert(apx::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         return has<Comp>(entity) ? &get<Comp>(entity) : nullptr;
     }
 
@@ -602,7 +605,7 @@ public:
     [[nodiscard]] apx::generator<apx::entity> view()
     {
         if constexpr (sizeof...(Ts) > 0) {
-            using T = apx::meta::get_first_t<Ts...>;
+            using T = apx::get_first_t<Ts...>;
             for (auto [index, component] : get_comps<T>().fast()) {
                 apx::entity entity = d_entities[index];
                 if ((has<Ts>(entity) && ...)) {
@@ -656,11 +659,11 @@ public:
 template <typename... Comps>
 class handle
 {
-    apx::registry<Comps...>* d_registry;
-    apx::entity              d_entity;
+    apx::fixed_registry<Comps...>* d_registry;
+    apx::entity                    d_entity;
 
 public:
-    handle(apx::registry<Comps...>& r, const apx::entity e) : d_registry(&r), d_entity(e) {}
+    handle(apx::fixed_registry<Comps...>& r, const apx::entity e) : d_registry(&r), d_entity(e) {}
     explicit constexpr handle() : d_registry(nullptr), d_entity(apx::null) {}
 
     apx::entity entity() const { return d_entity; }
@@ -708,13 +711,224 @@ public:
 };
 
 template <typename... Comps>
-inline apx::handle<Comps...> create_from(apx::registry<Comps...>& registry)
+inline apx::handle<Comps...> create_from(apx::fixed_registry<Comps...>& registry)
 {
     return {registry, registry.create()};
 }
 
 template <typename... Comps>
 static constexpr apx::handle null_handle{};
+
+class registry
+{
+    std::vector<apx::sparse_set<std::any>> d_components;
+    apx::sparse_set<apx::entity>           d_entities;
+    std::deque<apx::entity>                d_pool;
+
+    template <typename T>
+    apx::sparse_set<std::any>& get_components() noexcept
+    {
+        std::size_t type_id = apx::type_id<T>;
+        if (d_components.size() <= type_id) {
+            d_components.resize(type_id + 1);
+        }
+        return d_components[type_id];
+    }
+
+    template <typename T>
+    const apx::sparse_set<std::any>& get_components() const noexcept
+    {
+        std::size_t type_id = apx::type_id<T>;
+        if (d_components.size() <= type_id) {
+            d_components.resize(type_id + 1);
+        }
+        return d_components[type_id];
+    }
+
+public:
+    [[nodiscard]] apx::entity create()
+    {
+        index_t index = (index_t)d_entities.size();
+        version_t version = 0;
+        if (!d_pool.empty()) {
+            std::tie(index, version) = split(d_pool.front());
+            d_pool.pop_front();
+            ++version;
+        }
+
+        const apx::entity id = combine(index, version);
+        d_entities.insert(index, id);
+        return id;
+    }
+
+    [[nodiscard]] bool valid(const apx::entity entity) const noexcept
+    {
+        const auto index = apx::to_index(entity);
+        return entity != apx::null
+            && d_entities.has(index)
+            && d_entities[index] == entity;
+    }
+
+    void destroy(const apx::entity entity)
+    {
+        assert(valid(entity));
+        const auto index = apx::to_index(entity);
+        for (auto& component_list : d_components) {
+            if (component_list.has(index)) {
+                component_list.erase(index);
+            }
+        }
+
+        d_pool.push_back(entity);
+        d_entities.erase(index);
+    }
+
+    [[nodiscard]] std::size_t size() const noexcept
+    {
+        return d_entities.size();
+    }
+
+    void clear()
+    {
+        d_components.clear();
+        d_entities.clear();
+        d_pool.clear();
+    }
+
+    template <typename Comp>
+    Comp& add(const apx::entity entity, const Comp& component)
+    {
+        assert(valid(entity));
+        using T = std::decay_t<Comp>;
+
+        auto& comp_set = get_components<T>();
+        auto& entry = comp_set.insert(
+            apx::to_index(entity),
+            std::make_any<T>(component)
+        );
+        return std::any_cast<T&>(entry);
+    }
+
+    template <typename Comp, typename... Args>
+    Comp& emplace(const apx::entity entity, Args&&... args)
+    {
+        assert(valid(entity));
+        using T = std::decay_t<Comp>;
+
+        auto& comp_set = get_components<T>();
+        auto& entry = comp_set.emplace(
+            apx::to_index(entity),
+            std::make_any<T>(std::forward<Args>(args)...)
+        );
+        return std::any_cast<T&>(entry);
+    }
+
+    template <typename Comp>
+    void remove(const apx::entity entity)
+    {
+        assert(valid(entity));
+        using T = std::decay_t<Comp>;
+
+        auto& comp_set = get_components<T>();
+        if (has<T>(entity)) {
+            comp_set.erase(apx::to_index(entity));
+        }
+    }
+
+    template <typename Comp>
+    [[nodiscard]] bool has(const apx::entity entity) noexcept
+    {
+        assert(valid(entity));
+        using T = std::decay_t<Comp>;
+
+        auto& comp_set = get_components<T>();
+        return comp_set.has(apx::to_index(entity));
+    }
+
+    template <typename Comp>
+    [[nodiscard]] Comp& get(const apx::entity entity)
+    {
+        assert(valid(entity));
+        assert(has<Comp>(entity));
+        using T = std::decay_t<Comp>;
+
+        auto& comp_set = get_components<T>();
+        return std::any_cast<T&>(comp_set[apx::to_index(entity)]);
+    }
+
+    template <typename Comp>
+    [[nodiscard]] const Comp& get(const apx::entity entity) const
+    {
+        assert(valid(entity));
+        assert(has<Comp>(entity));
+        using T = std::decay_t<Comp>;
+
+        auto& comp_set = get_components<T>();
+        return std::any_cast<const T&>(comp_set[apx::to_index(entity)]);
+    }
+
+    template <typename Comp>
+    [[nodiscard]] Comp* get_if(const apx::entity entity) noexcept
+    {
+        assert(valid(entity));
+        return has<Comp>(entity) ? &get<Comp>(entity) : nullptr;
+    }
+
+    [[nodiscard]] apx::generator<apx::entity> all() noexcept
+    {
+        return view();
+    }
+
+    void all(const std::function<void(apx::entity)>& cb)
+    {
+        for (apx::entity entity : all()) {
+            cb(entity);
+        }
+    }
+
+    template <typename... Ts>
+    [[nodiscard]] apx::generator<apx::entity> view()
+    {
+        if constexpr (sizeof...(Ts) > 0) {
+            using T = apx::get_first_t<Ts...>;
+            for (auto [index, component] : get_components<T>().fast()) {
+                apx::entity entity = d_entities[index];
+                if ((has<Ts>(entity) && ...)) {
+                    co_yield entity;
+                }
+            }
+        } else {
+            for (auto [index, entity] : d_entities.fast()) {
+                co_yield entity;
+            }
+        }
+    }
+
+    template <typename... Ts>
+    void view(const std::function<void(apx::entity)>& cb) {
+        for (apx::entity entity : view<Ts...>()) {
+            cb(entity);
+        }
+    }
+
+    template <typename... Ts>
+    void view(const std::function<void(apx::entity, Ts&...)>& cb) {
+        for (apx::entity entity : view<Ts...>()) {
+            cb(entity, get<Ts>(entity)...);
+        }
+    }
+
+    template <typename... Ts>
+    void erase_if(const std::function<bool(apx::entity)>& cb) {
+        std::vector<apx::entity> to_delete;
+        for (auto entity : view<Ts...>()) {
+            if (cb(entity)) { to_delete.push_back(entity); }
+        }
+        for (auto entity : to_delete) {
+            destroy(entity);
+        }
+    }
+};
 
 }
 

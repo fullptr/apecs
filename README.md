@@ -10,9 +10,13 @@ This library also includes some very basic meta-programming functionality, found
 This project was just a fun little project to allow me to learn more about ECSs and how to implement one, as well as metaprogramming and C++20 features. If you are building your own project and need an ECS, I would recommend you build your own or use EnTT instead.
 
 ## The Registry and Entities
-In `apecs`, an entity, `apx::entity`, is simply a 64-bit unsigned integer. All components attached to this entity are stored and accessed via the `apx::registry` class. To start, you can default construct a registry, with all of the component types declated up front
+In `apecs`, an entity, `apx::entity`, is simply a 64-bit unsigned integer. All components attached to this entity are stored and accessed via the `apx::fixed_registry` class. To start, you can default construct a registry, with all of the component types declated up front
 ```cpp
-apx::registry<transform, mesh, light, physics, script> registry;
+apx::fixed_registry<transform, mesh, light, physics, script> registry;
+```
+There is also a newer version that is implemented using type erasure rather than variadix templates. Constructing one is cleaner, and the API is almost identical to the fixed registry. Constructing one is as simple as
+```cpp
+apx::registry registry;
 ```
 Creating an empty entity is simple
 ```cpp
@@ -106,6 +110,8 @@ registry.view<transform, mesh>(auto entity, const transform& t, const mesh& m) {
 ```
 
 ## Notification System
+NOTE: This only applies to `apx::fixed_registry`. There is nothing stopping me from adding these to the typeless version, I just don't currently need it myself.
+
 `apecs`, like `EnTT`, is mainly just a data structure for storing components, and does not have any built in features specifically for systems; they are left up to the user. However, `apecs` does also allow for registering callbacks so that systems can be notified whenever a component is created or destroyed. Callbacks have the signature `void(apx::entity, const Component&)`. To be notified of a component being added, use `on_add`
 ```cpp
 registry.on_add<transform>([&](apx::entity entity, const transform& component) {
@@ -123,6 +129,8 @@ registry.on_remove<transform>([&](apx::entity entity, const transform& component
 If a registry is cleared, all `on_remove` callbacks are invoked for each entity along the way.
 
 ## Entity Handle
+NOTE: This is only implmented for `apx::fixed_registry`. However, I will most likely rename this to `apx::fixed_handle` and implemement the typeless version too.
+
 To some, a call such as `registry.add<transform>(entity, t)` may feel unnatural and would prefer a more traditional object oriented interface such as `entity.add<transform>(t)`. This is provided via `apx::handle`, a thin wrapper around a registry pointer and an entity. Given a reigstry and an entity, a handle can be created easily
 ```cpp
 apx::handle handle{&registry, entity};
