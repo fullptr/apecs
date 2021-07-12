@@ -726,23 +726,32 @@ class registry
     std::deque<apx::entity>                d_pool;
 
     template <typename T>
+    void assure() noexcept
+    {
+        std::size_t type_idx = apx::type_id<T>;
+        if (d_components.size() <= type_idx) {
+            d_components.resize(type_idx + 1);
+        }
+    }
+
+    template <typename T>
+    constexpr bool has_components() const noexcept
+    {
+        return apx::type_id<T> < d_components.size();
+    }
+
+    template <typename T>
     apx::sparse_set<std::any>& get_components() noexcept
     {
-        std::size_t type_id = apx::type_id<T>;
-        if (d_components.size() <= type_id) {
-            d_components.resize(type_id + 1);
-        }
-        return d_components[type_id];
+        assert(has_components<T>());
+        return d_components.at(apx::type_id<T>);
     }
 
     template <typename T>
     const apx::sparse_set<std::any>& get_components() const noexcept
     {
-        std::size_t type_id = apx::type_id<T>;
-        if (d_components.size() <= type_id) {
-            d_components.resize(type_id + 1);
-        }
-        return d_components[type_id];
+        assert(has_components<T>());
+        return d_components.at(apx::type_id<T>);
     }
 
 public:
@@ -801,6 +810,7 @@ public:
         assert(valid(entity));
         using T = std::decay_t<Comp>;
 
+        assure<T>();
         auto& comp_set = get_components<T>();
         auto& entry = comp_set.insert(
             apx::to_index(entity),
@@ -815,6 +825,7 @@ public:
         assert(valid(entity));
         using T = std::decay_t<Comp>;
 
+        assure<T>();
         auto& comp_set = get_components<T>();
         auto& entry = comp_set.emplace(
             apx::to_index(entity),
@@ -829,18 +840,20 @@ public:
         assert(valid(entity));
         using T = std::decay_t<Comp>;
 
-        auto& comp_set = get_components<T>();
-        if (has<T>(entity)) {
+        if (has_components<T>() && has<T>(entity)) {
+            auto& comp_set = get_components<T>();
             comp_set.erase(apx::to_index(entity));
         }
     }
 
     template <typename Comp>
-    [[nodiscard]] bool has(const apx::entity entity) noexcept
+    [[nodiscard]] bool has(const apx::entity entity) const noexcept
     {
         assert(valid(entity));
         using T = std::decay_t<Comp>;
-
+        if (!has_components<T>()) {
+            return false;
+        }
         auto& comp_set = get_components<T>();
         return comp_set.has(apx::to_index(entity));
     }
@@ -891,10 +904,12 @@ public:
     {
         if constexpr (sizeof...(Ts) > 0) {
             using T = apx::get_first_t<Ts...>;
-            for (auto [index, component] : get_components<T>().fast()) {
-                apx::entity entity = d_entities[index];
-                if ((has<Ts>(entity) && ...)) {
-                    co_yield entity;
+            if (has_components<T>()) {
+                for (auto [index, component] : get_components<T>().fast()) {
+                    apx::entity entity = d_entities[index];
+                    if ((has<Ts>(entity) && ...)) {
+                        co_yield entity;
+                    }
                 }
             }
         } else {
