@@ -591,7 +591,7 @@ public:
         return view();
     }
 
-    void all(const std::function<void(apx::entity)>& cb) const
+    void all(const std::function<void(apx::entity)>& cb) const noexcept
     {
         for (apx::entity entity : all()) {
             cb(entity);
@@ -599,7 +599,7 @@ public:
     }
 
     template <typename... Ts>
-    [[nodiscard]] apx::generator<apx::entity> view() const
+    [[nodiscard]] apx::generator<apx::entity> view() const noexcept
     {
         if constexpr (sizeof...(Ts) > 0) {
             using T = apx::meta::get_first_t<Ts...>;
@@ -617,7 +617,7 @@ public:
     }
 
     template <typename... Ts>
-    void view(const std::function<void(apx::entity)>& cb) const
+    void view(const std::function<void(apx::entity)>& cb) const noexcept
     {
         for (apx::entity entity : view<Ts...>()) {
             cb(entity);
@@ -625,7 +625,8 @@ public:
     }
 
     template <typename... Ts>
-    void view(const std::function<void(apx::entity, Ts&...)>& cb) {
+    void view(const std::function<void(apx::entity, Ts&...)>& cb) const noexcept
+    {
         for (apx::entity entity : view<Ts...>()) {
             cb(entity, get<Ts>(entity)...);
         }
@@ -643,7 +644,7 @@ public:
     }
 
     template <typename... Comps>
-    [[nodiscard]] apx::entity find(const predicate_t& predicate = [](apx::entity) { return true; })
+    [[nodiscard]] apx::entity find(const predicate_t& predicate = [](apx::entity) { return true; }) const noexcept
     {
         for (auto entity : view<Comps...>()) {
             if (predicate(entity)) {
