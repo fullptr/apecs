@@ -342,9 +342,25 @@ public:
         }
     }
 
+    apx::generator<const std::pair<const index_type, value_type>&> fast() const
+    {
+        for (auto pair : d_packed) {
+            co_yield pair;
+        }
+    }
+
     // Provides a generator that loops over the sparse set, which is slow but
     // allows for deleting elements while looping.
     apx::generator<std::pair<const index_type, value_type>&> safe()
+    {
+        for (auto index : d_sparse) {
+            if (index != EMPTY) {
+                co_yield d_packed[index];
+            }
+        }
+    }
+
+    apx::generator<const std::pair<const index_type, value_type>&> safe() const
     {
         for (auto index : d_sparse) {
             if (index != EMPTY) {
