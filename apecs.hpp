@@ -417,13 +417,6 @@ private:
         return std::get<apx::sparse_set<Comp>>(d_components);
     }
 
-    void remove_all_components(apx::entity entity)
-    {
-        apx::meta::for_each(d_components, [&](auto& comp_set) {
-            remove(entity, comp_set);
-        });
-    }
-
 public:
     ~registry()
     {
@@ -539,6 +532,13 @@ public:
 
         auto& comp_set = get_comps<Comp>();
         return remove(entity, comp_set);
+    }
+
+    void remove_all_components(apx::entity entity)
+    {
+        apx::meta::for_each(d_components, [&](auto& comp_set) {
+            remove(entity, comp_set);
+        });
     }
 
     template <typename Comp>
