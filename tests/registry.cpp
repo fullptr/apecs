@@ -167,6 +167,28 @@ TEST(registry_view, view_for_loop)
     ASSERT_EQ(count, 1);
 }
 
+TEST(registry_view, view_for_loop_multi)
+{
+    apx::registry<foo, bar> reg;
+
+    auto e1 = reg.create();
+    reg.emplace<foo>(e1);
+    reg.emplace<bar>(e1);
+
+    auto e2 = reg.create();
+    reg.emplace<bar>(e2);
+
+    auto e3 = reg.create();
+    reg.emplace<foo>(e3);
+    reg.emplace<bar>(e3);
+
+    std::size_t count = 0;
+    for (auto entity : reg.view<foo, bar>()) {
+        ++count;
+    }
+    ASSERT_EQ(count, 2);
+}
+
 TEST(registry_view, view_callback)
 {
     apx::registry<foo, bar> reg;
