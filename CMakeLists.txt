@@ -7,7 +7,6 @@ enable_testing()
 add_executable(
     tests
     ./tests/meta.cpp
-    ./tests/generator.cpp
     ./tests/sparse_set.cpp
     ./tests/registry.cpp
     ./tests/handle.cpp
