@@ -383,6 +383,36 @@ public:
 
     using handle_type = apx::handle<Comps...>;
 
+    class all_t
+    {
+        const registry* d_reg;
+
+        class all_iterator
+        {
+            const registry* d_reg;
+            apx::sparse_set<apx::entity>::const_iterator d_iter;
+        
+        public:
+            all_iterator(const registry* reg, apx::sparse_set<apx::entity>::const_iterator iter)
+                : d_reg(reg)
+                , d_iter(iter)
+            {}
+
+            apx::entity operator*() const { return d_iter->second; }
+            all_iterator& operator++() { ++d_iter; return *this; }
+            bool operator==(const all_iterator& other) { return d_iter == other.d_iter; }
+            bool operator!=(const all_iterator& other) { return !(*this == other); }
+        };
+
+    public:
+        all_t(const registry* reg) : d_reg(reg) {}
+
+        all_iterator begin() { return {d_reg, d_reg->d_entities.cbegin()}; }
+        all_iterator end() { return {d_reg, d_reg->d_entities.cend()}; }
+        all_iterator cbegin() { return {d_reg, d_reg->d_entities.cbegin()}; }
+        all_iterator cend() { return {d_reg, d_reg->d_entities.cend()}; }
+    };
+
 private:
     using tuple_type = std::tuple<apx::sparse_set<Comps>...>;
 
@@ -578,9 +608,9 @@ public:
         return has<Comp>(entity) ? &get<Comp>(entity) : nullptr;
     }
 
-    [[nodiscard]] apx::generator<apx::entity> all() const noexcept
+    [[nodiscard]] all_t all() const noexcept
     {
-        return view();
+        return all_t{this};
     }
 
     void all(const std::function<void(apx::entity)>& cb) const noexcept
