@@ -227,6 +227,7 @@ public:
         public:
             view_iterator(const registry* reg, apx::sparse_set<apx::entity>::const_iterator iter)
                 : d_reg(reg), d_iter(iter) {}
+            ~view_iterator() = default;
 
             apx::entity operator*() const { return d_iter->second; }
             view_iterator& operator++() { ++d_iter; return *this; }
@@ -262,11 +263,13 @@ public:
         public:
             view_iterator(const registry* reg, apx::sparse_set<T>::const_iterator iter)
                 : d_reg(reg), d_iter(iter) {}
+            ~view_iterator() = default;
 
             apx::entity operator*() const { return d_reg->from_index(d_iter->first); }
             view_iterator& operator++() {
+                ++d_iter;
                 if constexpr (sizeof...(Ts) > 0) {
-                    while (++d_iter != d_reg->get_comps<T>().cend() && !d_reg->has_all<Ts...>(**this));
+                    while (d_iter != d_reg->get_comps<T>().cend() && !d_reg->has_all<Ts...>(**this)) { ++d_iter; }
                 }
                 return *this;
             }
