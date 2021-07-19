@@ -240,35 +240,6 @@ public:
         view_iterator cend() { return {d_reg, d_reg->d_entities.cend()}; }
     };
 
-    template <typename T>
-    class view_t<T>
-    {
-        const registry* d_reg;
-
-    public:
-        view_t(const registry* reg) : d_reg(reg) {}
-
-        class view_iterator
-        {
-            const registry* d_reg;
-            apx::sparse_set<T>::const_iterator d_iter;
-        
-        public:
-            view_iterator(const registry* reg, apx::sparse_set<T>::const_iterator iter)
-                : d_reg(reg), d_iter(iter) {}
-
-            apx::entity operator*() const { return d_reg->from_index(d_iter->first); }
-            view_iterator& operator++() { ++d_iter; return *this; }
-            bool operator==(const view_iterator& other) { return d_iter == other.d_iter; }
-            bool operator!=(const view_iterator& other) { return !(*this == other); }
-        };
-
-        view_iterator begin() { return {d_reg, d_reg->get_comps<T>().cbegin()}; }
-        view_iterator end() { return {d_reg, d_reg->get_comps<T>().cend()}; }
-        view_iterator cbegin() { return {d_reg, d_reg->get_comps<T>().cbegin()}; }
-        view_iterator cend() { return {d_reg, d_reg->get_comps<T>().cend()}; }
-    };
-
     template <typename T, typename... Ts>
     class view_t<T, Ts...>
     {
@@ -289,7 +260,9 @@ public:
             apx::entity operator*() const { return d_reg->from_index(d_iter->first); }
             view_iterator& operator++() {
                 ++d_iter;
-                while (d_iter != d_reg->get_comps<T>().cend() && !(d_reg->has<Ts>(d_reg->from_index(d_iter->first)) && ...)) { ++d_iter; }
+                if constexpr (sizeof...(Ts) > 0) {
+                    while (d_iter != d_reg->get_comps<T>().cend() && !(d_reg->has<Ts>(d_reg->from_index(d_iter->first)) && ...)) { ++d_iter; }
+                }
                 return *this;
             }
             bool operator==(const view_iterator& other) { return d_iter == other.d_iter; }
