@@ -417,6 +417,13 @@ private:
         return std::get<apx::sparse_set<Comp>>(d_components);
     }
 
+    void remove_all_components(apx::entity entity)
+    {
+        apx::meta::for_each(d_components, [&](auto& comp_set) {
+            remove(entity, comp_set);
+        });
+    }
+
 public:
     ~registry()
     {
@@ -461,10 +468,7 @@ public:
     void destroy(const apx::entity entity)
     {
         assert(valid(entity));
-        apx::meta::for_each(d_components, [&](auto& comp_set) {
-            remove(entity, comp_set);
-        });
-
+        remove_all_components(entity);
         d_pool.push_back(entity);
         d_entities.erase(apx::to_index(entity));
     }
@@ -477,9 +481,7 @@ public:
     void clear()
     {
         for (auto [index, entity] : d_entities) {
-            apx::meta::for_each(tags, [&] <typename T> (apx::meta::tag<T>) {
-                remove(entity, get_comps<T>());
-            });
+            remove_all_components(entity);
         }
         d_entities.clear();
         d_pool.clear();
