@@ -185,26 +185,6 @@ TEST(registry_view, view_callback)
     ASSERT_EQ(count, 1);
 }
 
-TEST(registry_view, view_extended_callback)
-{
-    apx::registry<foo, bar> reg;
-
-    auto e1 = reg.create();
-    reg.emplace<foo>(e1);
-    reg.emplace<bar>(e1);
-
-    auto e2 = reg.create();
-    reg.emplace<bar>(e2);
-
-    std::size_t count = 0;
-    reg.view<foo>([&](apx::entity, foo& comp) {
-        ++count;
-        comp.value = 10;
-    });
-    ASSERT_EQ(count, 1);
-    ASSERT_EQ(reg.get<foo>(e1).value, 10);
-}
-
 TEST(registry_all, all_for_loop)
 {
     apx::registry<foo, bar> reg;

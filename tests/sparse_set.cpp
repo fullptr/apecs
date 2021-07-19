@@ -21,12 +21,12 @@ TEST(sparse_set, erase)
     ASSERT_FALSE(set.has(2));
 }
 
-TEST(sparse_set, fast_with_one_element)
+TEST(sparse_set, iterate_with_one_element)
 {
     apx::sparse_set<int> set;
     set.insert(2, 5);
 
-    for (auto [key, value] : set.fast()) {
+    for (auto [key, value] : set) {
         ASSERT_EQ(key, 2);
         ASSERT_EQ(value, 5);
     }

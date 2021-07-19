@@ -220,6 +220,7 @@ public:
     using sparse_type = std::vector<index_type>;
 
     using iterator = typename packed_type::iterator;
+    using const_iterator = typename packed_type::const_iterator;
 
 private:
     static_assert(std::is_integral<index_type>());
@@ -333,41 +334,12 @@ public:
         return d_packed[d_sparse[index]].second;
     }
 
-    // Provides a generator that loops over the packed set, which is fast but
-    // results in undefined behaviour when removing elements.
-    apx::generator<std::pair<const index_type, value_type>&> fast()
-    {
-        for (auto pair : d_packed) {
-            co_yield pair;
-        }
-    }
-
-    apx::generator<const std::pair<const index_type, value_type>&> fast() const
-    {
-        for (auto pair : d_packed) {
-            co_yield pair;
-        }
-    }
-
-    // Provides a generator that loops over the sparse set, which is slow but
-    // allows for deleting elements while looping.
-    apx::generator<std::pair<const index_type, value_type>&> safe()
-    {
-        for (auto index : d_sparse) {
-            if (index != EMPTY) {
-                co_yield d_packed[index];
-            }
-        }
-    }
-
-    apx::generator<const std::pair<const index_type, value_type>&> safe() const
-    {
-        for (auto index : d_sparse) {
-            if (index != EMPTY) {
-                co_yield d_packed[index];
-            }
-        }
-    }
+    auto begin() noexcept { return d_packed.begin(); }
+    auto end() noexcept { return d_packed.end(); }
+    auto begin() const noexcept { return d_packed.begin(); }
+    auto end() const noexcept { return d_packed.end(); }
+    auto cbegin() const noexcept { return d_packed.cbegin(); }
+    auto cend() const noexcept { return d_packed.cend(); }
 };
 
 enum class entity : std::uint64_t {};
@@ -504,8 +476,10 @@ public:
 
     void clear()
     {
-        for (auto [idx, entity] : d_entities.safe()) {
-            destroy(entity);
+        for (auto [index, entity] : d_entities) {
+            apx::meta::for_each(tags, [&] <typename T> (apx::meta::tag<T>) {
+                remove(entity, get_comps<T>());
+            });
         }
         d_entities.clear();
         d_pool.clear();
@@ -619,14 +593,14 @@ public:
     {
         if constexpr (sizeof...(Ts) > 0) {
             using T = apx::meta::get_first_t<Ts...>;
-            for (auto [index, component] : get_comps<T>().fast()) {
+            for (auto [index, component] : get_comps<T>()) {
                 apx::entity entity = d_entities[index];
                 if ((has<Ts>(entity) && ...)) {
                     co_yield entity;
                 }
             }
         } else {
-            for (auto [index, entity] : d_entities.fast()) {
+            for (auto [index, entity] : d_entities) {
                 co_yield entity;
             }
         }
@@ -637,14 +611,6 @@ public:
     {
         for (apx::entity entity : view<Ts...>()) {
             cb(entity);
-        }
-    }
-
-    template <typename... Ts>
-    void view(const std::function<void(apx::entity, Ts&...)>& cb) const noexcept
-    {
-        for (apx::entity entity : view<Ts...>()) {
-            cb(entity, get<Ts>(entity)...);
         }
     }
 
