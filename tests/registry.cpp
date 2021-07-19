@@ -201,7 +201,8 @@ TEST(registry_view, view_callback)
     reg.emplace<bar>(e2);
 
     std::size_t count = 0;
-    reg.view<foo>([&](apx::entity) {
+    auto view = reg.view<foo>();
+    view.each([&](apx::entity) {
         ++count;
     });
     ASSERT_EQ(count, 1);
@@ -237,7 +238,7 @@ TEST(registry_all, all_callback)
     reg.emplace<bar>(e2);
 
     std::size_t count = 0;
-    reg.all([&](apx::entity) {
+    reg.all().each([&](apx::entity) {
         ++count;
     });
     ASSERT_EQ(count, 2);

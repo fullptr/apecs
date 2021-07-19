@@ -238,6 +238,12 @@ public:
         view_iterator end() { return {d_reg, d_reg->d_entities.cend()}; }
         view_iterator cbegin() { return {d_reg, d_reg->d_entities.cbegin()}; }
         view_iterator cend() { return {d_reg, d_reg->d_entities.cend()}; }
+
+        void each(const std::function<void(apx::entity)>& cb) {
+            for (auto entity : *this) {
+                cb(entity);
+            }
+        }
     };
 
     template <typename T, typename... Ts>
@@ -259,9 +265,8 @@ public:
 
             apx::entity operator*() const { return d_reg->from_index(d_iter->first); }
             view_iterator& operator++() {
-                ++d_iter;
                 if constexpr (sizeof...(Ts) > 0) {
-                    while (d_iter != d_reg->get_comps<T>().cend() && !(d_reg->has<Ts>(d_reg->from_index(d_iter->first)) && ...)) { ++d_iter; }
+                    while (++d_iter != d_reg->get_comps<T>().cend() && !d_reg->has_all<Ts...>(**this));
                 }
                 return *this;
             }
@@ -273,6 +278,12 @@ public:
         view_iterator end() { return {d_reg, d_reg->get_comps<T>().cend()}; }
         view_iterator cbegin() { return {d_reg, d_reg->get_comps<T>().cbegin()}; }
         view_iterator cend() { return {d_reg, d_reg->get_comps<T>().cend()}; }
+
+        void each(const std::function<void(apx::entity)>& cb) {
+            for (auto entity : *this) {
+                cb(entity);
+            }
+        }
     };
 
 private:
@@ -443,6 +454,22 @@ public:
         return comp_set.has(apx::to_index(entity));
     }
 
+    template <typename... Comps>
+    [[nodiscard]] bool has_all(const apx::entity entity) const noexcept
+    {
+        static_assert((apx::meta::tuple_contains_v<apx::sparse_set<Comps>, tuple_type> && ...));
+        assert(valid(entity));
+        return (has<Comps>(entity) && ...);
+    }
+
+    template <typename... Comps>
+    [[nodiscard]] bool has_any(const apx::entity entity) const noexcept
+    {
+        static_assert((apx::meta::tuple_contains_v<apx::sparse_set<Comps>, tuple_type> && ...));
+        assert(valid(entity));
+        return (has<Comps>(entity) || ...);
+    }
+
     template <typename Comp>
     [[nodiscard]] Comp& get(const apx::entity entity) noexcept
     {
@@ -480,25 +507,10 @@ public:
         return view_t<>{this};
     }
 
-    void all(const std::function<void(apx::entity)>& cb) const noexcept
-    {
-        for (apx::entity entity : all()) {
-            cb(entity);
-        }
-    }
-
     template <typename... Ts>
     [[nodiscard]] view_t<Ts...> view() const noexcept
     {
         return view_t<Ts...>{this};
-    }
-
-    template <typename... Ts>
-    void view(const std::function<void(apx::entity)>& cb) const noexcept
-    {
-        for (apx::entity entity : view<Ts...>()) {
-            cb(entity);
-        }
     }
 
     template <typename... Ts>
@@ -551,8 +563,16 @@ public:
     template <typename Comp>
     void remove() { d_registry->template remove<Comp>(d_entity); }
 
+    void remove_all_components() { d_registry->remove_all_components(d_entity); }
+
     template <typename Comp>
     [[nodiscard]] bool has() const noexcept { return d_registry->template has<Comp>(d_entity); }
+
+    template <typename... Comps>
+    [[nodiscard]] bool has_all() const noexcept { return d_registry->template has_all<Comps...>(d_entity); }
+
+    template <typename... Comps>
+    [[nodiscard]] bool has_any() const noexcept { return d_registry->template has_any<Comps...>(d_entity); }
 
     template <typename Comp>
     [[nodiscard]] Comp& get() noexcept { return d_registry->template get<Comp>(d_entity); }
