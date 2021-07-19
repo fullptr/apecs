@@ -2,7 +2,6 @@
 #define APECS_HPP_
 
 #include <cassert>
-#include <coroutine>
 #include <cstdint>
 #include <deque>
 #include <functional>
@@ -33,181 +32,7 @@ template <typename T> struct tag
     static T type(); // Not implmented, to be used with decltype
 };
 
-template <typename... Ts>
-struct get_first;
-
-template <typename T, typename... Ts>
-struct get_first<T, Ts...> { using type = T; };
-
-template <typename... Ts>
-using get_first_t = typename get_first<Ts...>::type;
-
 }
-
-template <typename T> class generator;
-template <typename T> class generator_iterator;
-
-template <typename T>
-class generator_promise
-{
-public:
-    using value_type = std::decay_t<T>;
-
-private:
-    value_type*        d_val;
-    std::exception_ptr d_exception;
-
-public:
-    generator_promise() = default;
-
-    generator<T> get_return_object() noexcept
-    {
-        return generator<T>{
-            std::coroutine_handle<generator_promise<T>>::from_promise(*this)
-        };
-    }
-
-    constexpr std::suspend_always initial_suspend() const noexcept { return {}; }
-    constexpr std::suspend_always final_suspend() const noexcept { return {}; }
-
-    void return_void() {}
-
-    std::suspend_always yield_value(value_type& value) noexcept
-    {
-        d_val = std::addressof(value);
-        return {};
-    }
-
-    std::suspend_always yield_value(value_type&& value) noexcept
-    {
-        d_val = std::addressof(value);
-        return {};
-    }
-
-    void unhandled_exception() { d_exception = std::current_exception(); }
-
-    value_type& value() const noexcept { return *d_val; }
-
-    void rethrow_if()
-    {
-        if (d_exception) {
-            std::rethrow_exception(d_exception);
-        }
-    }
-};
-
-template <typename T>
-class generator
-{
-public:
-    using promise_type = generator_promise<T>;
-    using value_type = typename promise_type::value_type;
-
-    using iterator = generator_iterator<T>;
-
-private:
-    std::coroutine_handle<promise_type> d_coroutine;
-
-    generator(const generator&) = delete;
-    generator& operator=(generator) = delete;
-
-public:
-    explicit generator(std::coroutine_handle<promise_type> coroutine) noexcept
-        : d_coroutine(coroutine)
-    {}
-
-    explicit generator(generator&& other)
-        : d_coroutine(std::move(other.d_coroutine))
-    {}
-
-    ~generator()
-    {
-        if (d_coroutine) { d_coroutine.destroy(); }
-    }
-
-    [[nodiscard]] iterator begin()
-    {
-        advance();
-        return iterator{*this};
-    }
-
-    [[nodiscard]] iterator::sentinel end() noexcept
-    {
-        return {};
-    }
-
-    [[nodiscard]] bool valid() const noexcept
-    {
-        return d_coroutine && !d_coroutine.done();
-    }
-
-    void advance()
-    {
-        if (d_coroutine) {
-            d_coroutine.resume();
-            if (d_coroutine.done()) {
-                d_coroutine.promise().rethrow_if();
-            }
-        }
-    }
-
-    [[nodiscard]] value_type& value() const
-    {
-        return d_coroutine.promise().value();
-    }
-};
-
-template <typename T>
-class generator_iterator
-{
-public:
-    using value_type = typename generator<T>::value_type;
-
-    using iterator_category = std::input_iterator_tag;
-    using difference_type = std::ptrdiff_t;
-
-    struct sentinel {};
-
-private:
-    generator<T>* d_owner;
-
-public:
-    explicit generator_iterator(generator<T>& owner) noexcept
-        : d_owner(&owner)
-    {
-        static_assert(std::is_copy_assignable_v<generator_iterator<T>>);
-        static_assert(std::is_trivially_destructible_v<generator_iterator<T>>);
-    }
-
-    generator_iterator& operator=(const generator_iterator& other)
-    {
-        d_owner = other.d_owner;
-        return *this;
-    }
-
-    friend bool operator==(const generator_iterator& it, sentinel) noexcept
-    {
-        return !it.d_owner->valid();
-    }
-
-    generator_iterator& operator++()
-    {
-        d_owner->advance();
-        return *this;
-    }
-
-    generator_iterator& operator++(int) { return operator++(); }
-
-    [[nodiscard]] value_type& operator*() const noexcept
-    {
-        return d_owner->value();
-    }
-
-    [[nodiscard]] value_type* operator->() const noexcept
-    {
-        return std::addressof(operator*());
-    }
-};
 
 template <typename T>
 class sparse_set
@@ -220,6 +45,7 @@ public:
     using sparse_type = std::vector<index_type>;
 
     using iterator = typename packed_type::iterator;
+    using const_iterator = typename packed_type::const_iterator;
 
 private:
     static_assert(std::is_integral<index_type>());
@@ -333,41 +159,12 @@ public:
         return d_packed[d_sparse[index]].second;
     }
 
-    // Provides a generator that loops over the packed set, which is fast but
-    // results in undefined behaviour when removing elements.
-    apx::generator<std::pair<const index_type, value_type>&> fast()
-    {
-        for (auto pair : d_packed) {
-            co_yield pair;
-        }
-    }
-
-    apx::generator<const std::pair<const index_type, value_type>&> fast() const
-    {
-        for (auto pair : d_packed) {
-            co_yield pair;
-        }
-    }
-
-    // Provides a generator that loops over the sparse set, which is slow but
-    // allows for deleting elements while looping.
-    apx::generator<std::pair<const index_type, value_type>&> safe()
-    {
-        for (auto index : d_sparse) {
-            if (index != EMPTY) {
-                co_yield d_packed[index];
-            }
-        }
-    }
-
-    apx::generator<const std::pair<const index_type, value_type>&> safe() const
-    {
-        for (auto index : d_sparse) {
-            if (index != EMPTY) {
-                co_yield d_packed[index];
-            }
-        }
-    }
+    auto begin() noexcept { return d_packed.begin(); }
+    auto end() noexcept { return d_packed.end(); }
+    auto begin() const noexcept { return d_packed.begin(); }
+    auto end() const noexcept { return d_packed.end(); }
+    auto cbegin() const noexcept { return d_packed.cbegin(); }
+    auto cend() const noexcept { return d_packed.cend(); }
 };
 
 enum class entity : std::uint64_t {};
@@ -410,6 +207,84 @@ public:
     inline static constexpr std::tuple<apx::meta::tag<Comps>...> tags{};
 
     using handle_type = apx::handle<Comps...>;
+
+    template <typename... Ts>
+    class view_t;
+
+    template <>
+    class view_t<>
+    {
+        const registry* d_reg;
+
+    public:
+        view_t(const registry* reg) : d_reg(reg) {}
+
+        class view_iterator
+        {
+            const registry* d_reg;
+            apx::sparse_set<apx::entity>::const_iterator d_iter;
+        
+        public:
+            view_iterator(const registry* reg, apx::sparse_set<apx::entity>::const_iterator iter)
+                : d_reg(reg), d_iter(iter) {}
+
+            apx::entity operator*() const { return d_iter->second; }
+            view_iterator& operator++() { ++d_iter; return *this; }
+            bool operator==(const view_iterator& other) { return d_iter == other.d_iter; }
+            bool operator!=(const view_iterator& other) { return !(*this == other); }
+        };
+
+        view_iterator begin() { return {d_reg, d_reg->d_entities.cbegin()}; }
+        view_iterator end() { return {d_reg, d_reg->d_entities.cend()}; }
+        view_iterator cbegin() { return {d_reg, d_reg->d_entities.cbegin()}; }
+        view_iterator cend() { return {d_reg, d_reg->d_entities.cend()}; }
+
+        void each(const std::function<void(apx::entity)>& cb) {
+            for (auto entity : *this) {
+                cb(entity);
+            }
+        }
+    };
+
+    template <typename T, typename... Ts>
+    class view_t<T, Ts...>
+    {
+        const registry* d_reg;
+
+    public:
+        view_t(const registry* reg) : d_reg(reg) {}
+
+        class view_iterator
+        {
+            const registry* d_reg;
+            apx::sparse_set<T>::const_iterator d_iter;
+        
+        public:
+            view_iterator(const registry* reg, apx::sparse_set<T>::const_iterator iter)
+                : d_reg(reg), d_iter(iter) {}
+
+            apx::entity operator*() const { return d_reg->from_index(d_iter->first); }
+            view_iterator& operator++() {
+                if constexpr (sizeof...(Ts) > 0) {
+                    while (++d_iter != d_reg->get_comps<T>().cend() && !d_reg->has_all<Ts...>(**this));
+                }
+                return *this;
+            }
+            bool operator==(const view_iterator& other) { return d_iter == other.d_iter; }
+            bool operator!=(const view_iterator& other) { return !(*this == other); }
+        };
+
+        view_iterator begin() { return {d_reg, d_reg->get_comps<T>().cbegin()}; }
+        view_iterator end() { return {d_reg, d_reg->get_comps<T>().cend()}; }
+        view_iterator cbegin() { return {d_reg, d_reg->get_comps<T>().cbegin()}; }
+        view_iterator cend() { return {d_reg, d_reg->get_comps<T>().cend()}; }
+
+        void each(const std::function<void(apx::entity)>& cb) {
+            for (auto entity : *this) {
+                cb(entity);
+            }
+        }
+    };
 
 private:
     using tuple_type = std::tuple<apx::sparse_set<Comps>...>;
@@ -489,10 +364,7 @@ public:
     void destroy(const apx::entity entity)
     {
         assert(valid(entity));
-        apx::meta::for_each(d_components, [&](auto& comp_set) {
-            remove(entity, comp_set);
-        });
-
+        remove_all_components(entity);
         d_pool.push_back(entity);
         d_entities.erase(apx::to_index(entity));
     }
@@ -504,8 +376,8 @@ public:
 
     void clear()
     {
-        for (auto [idx, entity] : d_entities.safe()) {
-            destroy(entity);
+        for (auto [index, entity] : d_entities) {
+            remove_all_components(entity);
         }
         d_entities.clear();
         d_pool.clear();
@@ -565,6 +437,13 @@ public:
         return remove(entity, comp_set);
     }
 
+    void remove_all_components(apx::entity entity)
+    {
+        apx::meta::for_each(d_components, [&](auto& comp_set) {
+            remove(entity, comp_set);
+        });
+    }
+
     template <typename Comp>
     [[nodiscard]] bool has(const apx::entity entity) const noexcept
     {
@@ -573,6 +452,22 @@ public:
 
         const auto& comp_set = get_comps<Comp>();
         return comp_set.has(apx::to_index(entity));
+    }
+
+    template <typename... Comps>
+    [[nodiscard]] bool has_all(const apx::entity entity) const noexcept
+    {
+        static_assert((apx::meta::tuple_contains_v<apx::sparse_set<Comps>, tuple_type> && ...));
+        assert(valid(entity));
+        return (has<Comps>(entity) && ...);
+    }
+
+    template <typename... Comps>
+    [[nodiscard]] bool has_any(const apx::entity entity) const noexcept
+    {
+        static_assert((apx::meta::tuple_contains_v<apx::sparse_set<Comps>, tuple_type> && ...));
+        assert(valid(entity));
+        return (has<Comps>(entity) || ...);
     }
 
     template <typename Comp>
@@ -602,50 +497,20 @@ public:
         return has<Comp>(entity) ? &get<Comp>(entity) : nullptr;
     }
 
-    [[nodiscard]] apx::generator<apx::entity> all() const noexcept
+    apx::entity from_index(apx::index_t index) const noexcept
     {
-        return view();
+        return d_entities[index];
     }
 
-    void all(const std::function<void(apx::entity)>& cb) const noexcept
+    [[nodiscard]] view_t<> all() const noexcept
     {
-        for (apx::entity entity : all()) {
-            cb(entity);
-        }
-    }
-
-    template <typename... Ts>
-    [[nodiscard]] apx::generator<apx::entity> view() const noexcept
-    {
-        if constexpr (sizeof...(Ts) > 0) {
-            using T = apx::meta::get_first_t<Ts...>;
-            for (auto [index, component] : get_comps<T>().fast()) {
-                apx::entity entity = d_entities[index];
-                if ((has<Ts>(entity) && ...)) {
-                    co_yield entity;
-                }
-            }
-        } else {
-            for (auto [index, entity] : d_entities.fast()) {
-                co_yield entity;
-            }
-        }
+        return view_t<>{this};
     }
 
     template <typename... Ts>
-    void view(const std::function<void(apx::entity)>& cb) const noexcept
+    [[nodiscard]] view_t<Ts...> view() const noexcept
     {
-        for (apx::entity entity : view<Ts...>()) {
-            cb(entity);
-        }
-    }
-
-    template <typename... Ts>
-    void view(const std::function<void(apx::entity, Ts&...)>& cb) const noexcept
-    {
-        for (apx::entity entity : view<Ts...>()) {
-            cb(entity, get<Ts>(entity)...);
-        }
+        return view_t<Ts...>{this};
     }
 
     template <typename... Ts>
@@ -698,8 +563,16 @@ public:
     template <typename Comp>
     void remove() { d_registry->template remove<Comp>(d_entity); }
 
+    void remove_all_components() { d_registry->remove_all_components(d_entity); }
+
     template <typename Comp>
     [[nodiscard]] bool has() const noexcept { return d_registry->template has<Comp>(d_entity); }
+
+    template <typename... Comps>
+    [[nodiscard]] bool has_all() const noexcept { return d_registry->template has_all<Comps...>(d_entity); }
+
+    template <typename... Comps>
+    [[nodiscard]] bool has_any() const noexcept { return d_registry->template has_any<Comps...>(d_entity); }
 
     template <typename Comp>
     [[nodiscard]] Comp& get() noexcept { return d_registry->template get<Comp>(d_entity); }

@@ -167,6 +167,28 @@ TEST(registry_view, view_for_loop)
     ASSERT_EQ(count, 1);
 }
 
+TEST(registry_view, view_for_loop_multi)
+{
+    apx::registry<foo, bar> reg;
+
+    auto e1 = reg.create();
+    reg.emplace<foo>(e1);
+    reg.emplace<bar>(e1);
+
+    auto e2 = reg.create();
+    reg.emplace<bar>(e2);
+
+    auto e3 = reg.create();
+    reg.emplace<foo>(e3);
+    reg.emplace<bar>(e3);
+
+    std::size_t count = 0;
+    for (auto entity : reg.view<foo, bar>()) {
+        ++count;
+    }
+    ASSERT_EQ(count, 2);
+}
+
 TEST(registry_view, view_callback)
 {
     apx::registry<foo, bar> reg;
@@ -179,30 +201,11 @@ TEST(registry_view, view_callback)
     reg.emplace<bar>(e2);
 
     std::size_t count = 0;
-    reg.view<foo>([&](apx::entity) {
+    auto view = reg.view<foo>();
+    view.each([&](apx::entity) {
         ++count;
     });
     ASSERT_EQ(count, 1);
-}
-
-TEST(registry_view, view_extended_callback)
-{
-    apx::registry<foo, bar> reg;
-
-    auto e1 = reg.create();
-    reg.emplace<foo>(e1);
-    reg.emplace<bar>(e1);
-
-    auto e2 = reg.create();
-    reg.emplace<bar>(e2);
-
-    std::size_t count = 0;
-    reg.view<foo>([&](apx::entity, foo& comp) {
-        ++count;
-        comp.value = 10;
-    });
-    ASSERT_EQ(count, 1);
-    ASSERT_EQ(reg.get<foo>(e1).value, 10);
 }
 
 TEST(registry_all, all_for_loop)
@@ -235,7 +238,7 @@ TEST(registry_all, all_callback)
     reg.emplace<bar>(e2);
 
     std::size_t count = 0;
-    reg.all([&](apx::entity) {
+    reg.all().each([&](apx::entity) {
         ++count;
     });
     ASSERT_EQ(count, 2);
