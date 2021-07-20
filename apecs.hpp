@@ -231,6 +231,8 @@ public:
 
             apx::entity operator*() const { return d_iter->second; }
             view_iterator& operator++() { ++d_iter; return *this; }
+            bool valid() const { return d_iter != d_reg->d_entities.cend(); }
+            operator bool() const { return valid(); }
             bool operator==(const view_iterator& other) { return d_iter == other.d_iter; }
             bool operator!=(const view_iterator& other) { return !(*this == other); }
         };
@@ -269,10 +271,12 @@ public:
             view_iterator& operator++() {
                 ++d_iter;
                 if constexpr (sizeof...(Ts) > 0) {
-                    while (d_iter != d_reg->get_comps<T>().cend() && !d_reg->has_all<Ts...>(**this)) { ++d_iter; }
+                    while (valid() && !d_reg->has_all<Ts...>(**this)) { ++d_iter; }
                 }
                 return *this;
             }
+            bool valid() const { return d_iter != d_reg->get_comps<T>().cend(); }
+            operator bool() const { return valid(); }
             bool operator==(const view_iterator& other) { return d_iter == other.d_iter; }
             bool operator!=(const view_iterator& other) { return !(*this == other); }
         };
@@ -586,7 +590,7 @@ public:
     template <typename Comp>
     [[nodiscard]] Comp* get_if() noexcept { return d_registry->template get_if<Comp>(d_entity); }
 
-    [[nodiscard]] apx::handle<Comps...>& operator=(const apx::handle<Comps...>& other) noexcept
+    apx::handle<Comps...>& operator=(const apx::handle<Comps...>& other) noexcept
     {
         d_registry = other.d_registry;
         d_entity = other.d_entity;
