@@ -208,6 +208,8 @@ public:
 
     using handle_type = apx::handle<Comps...>;
 
+    class iterator_sentinel {};
+
     template <typename... Ts>
     class iterator;
 
@@ -227,21 +229,16 @@ public:
             , d_end(reg->d_entities.cend())
         {}
 
-        iterator(const inner_iterator& curr, const inner_iterator& end)
-            : d_curr(curr)
-            , d_end(end)
-        {}
-
         apx::entity operator*() const { return d_curr->second; }
         iterator& operator++() { ++d_curr; return *this; }
         bool valid() const { return d_curr != d_end; }
         operator bool() const { return valid(); }
-        bool operator==(const iterator& other) const { return d_curr == other.d_curr && d_end == other.d_end; }
+        bool operator==(iterator_sentinel) { return !valid(); }
 
         iterator begin() { return *this; }
-        iterator end() { return iterator(d_end, d_end); }
+        iterator_sentinel end() { return {}; }
         iterator cbegin() { return begin(); }
-        iterator cend() { return end(); }
+        iterator_sentinel cend() { return {}; }
 
         void each(const std::function<void(apx::entity)>& cb) {
             for (auto entity : *this) {
@@ -268,12 +265,6 @@ public:
             , d_end(reg->get_comps<T>().cend())
         {}
 
-        iterator(const registry* reg, const inner_iterator& curr, const inner_iterator& end)
-            : d_reg(reg)
-            , d_curr(curr)
-            , d_end(end)
-        {}
-
         apx::entity operator*() const { return d_reg->from_index(d_curr->first); }
         iterator& operator++() {
             ++d_curr;
@@ -284,12 +275,12 @@ public:
         }
         bool valid() const { return d_curr != d_end; }
         operator bool() const { return valid(); }
-        bool operator==(const iterator& other) const { return d_curr == other.d_curr && d_end == other.d_end; }
+        bool operator==(iterator_sentinel) { return !valid(); }
 
         iterator begin() { return *this; }
-        iterator end() { return iterator(d_reg, d_end, d_end); }
+        iterator_sentinel end() { return {}; }
         iterator cbegin() { return begin(); }
-        iterator cend() { return end(); }
+        iterator_sentinel cend() { return {}; }
 
         void each(const std::function<void(apx::entity)>& cb) {
             for (auto entity : *this) {
@@ -297,6 +288,9 @@ public:
             }
         }
     };
+
+    template <typename ...Comps>
+    using const_iterator = iterator<Comps...>;
 
 private:
     using tuple_type = std::tuple<apx::sparse_set<Comps>...>;
