@@ -70,6 +70,8 @@
         "xstddef": "cpp",
         "iostream": "cpp",
         "iomanip": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "format": "cpp",
+        "forward_list": "cpp"
     },
 }
