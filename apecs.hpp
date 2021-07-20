@@ -209,38 +209,39 @@ public:
     using handle_type = apx::handle<Comps...>;
 
     template <typename... Ts>
-    class view_t;
+    class iterator;
 
     template <>
-    class view_t<>
+    class iterator<>
     {
-        const registry* d_reg;
+    public:
+        using inner_iterator = typename apx::sparse_set<apx::entity>::const_iterator;
+
+    private:
+        inner_iterator d_curr;
+        inner_iterator d_end;
 
     public:
-        view_t(const registry* reg) : d_reg(reg) {}
+        iterator(const registry* reg)
+            : d_curr(reg->d_entities.cbegin())
+            , d_end(reg->d_entities.cend())
+        {}
 
-        class view_iterator
-        {
-            const registry* d_reg;
-            apx::sparse_set<apx::entity>::const_iterator d_iter;
-        
-        public:
-            view_iterator(const registry* reg, apx::sparse_set<apx::entity>::const_iterator iter)
-                : d_reg(reg), d_iter(iter) {}
-            ~view_iterator() = default;
+        iterator(const inner_iterator& curr, const inner_iterator& end)
+            : d_curr(curr)
+            , d_end(end)
+        {}
 
-            apx::entity operator*() const { return d_iter->second; }
-            view_iterator& operator++() { ++d_iter; return *this; }
-            bool valid() const { return d_iter != d_reg->d_entities.cend(); }
-            operator bool() const { return valid(); }
-            bool operator==(const view_iterator& other) { return d_iter == other.d_iter; }
-            bool operator!=(const view_iterator& other) { return !(*this == other); }
-        };
+        apx::entity operator*() const { return d_curr->second; }
+        iterator& operator++() { ++d_curr; return *this; }
+        bool valid() const { return d_curr != d_end; }
+        operator bool() const { return valid(); }
+        bool operator==(const iterator& other) const { return d_curr == other.d_curr && d_end == other.d_end; }
 
-        view_iterator begin() { return {d_reg, d_reg->d_entities.cbegin()}; }
-        view_iterator end() { return {d_reg, d_reg->d_entities.cend()}; }
-        view_iterator cbegin() { return {d_reg, d_reg->d_entities.cbegin()}; }
-        view_iterator cend() { return {d_reg, d_reg->d_entities.cend()}; }
+        iterator begin() { return *this; }
+        iterator end() { return iterator(d_end, d_end); }
+        iterator cbegin() { return begin(); }
+        iterator cend() { return end(); }
 
         void each(const std::function<void(apx::entity)>& cb) {
             for (auto entity : *this) {
@@ -250,41 +251,45 @@ public:
     };
 
     template <typename T, typename... Ts>
-    class view_t<T, Ts...>
+    class iterator<T, Ts...>
     {
+    public:
+        using inner_iterator = typename apx::sparse_set<T>::const_iterator;
+
+    private:
         const registry* d_reg;
+        inner_iterator d_curr;
+        inner_iterator d_end;
 
     public:
-        view_t(const registry* reg) : d_reg(reg) {}
+        iterator(const registry* reg)
+            : d_reg(reg)
+            , d_curr(reg->get_comps<T>().cbegin())
+            , d_end(reg->get_comps<T>().cend())
+        {}
 
-        class view_iterator
-        {
-            const registry* d_reg;
-            apx::sparse_set<T>::const_iterator d_iter;
-        
-        public:
-            view_iterator(const registry* reg, apx::sparse_set<T>::const_iterator iter)
-                : d_reg(reg), d_iter(iter) {}
-            ~view_iterator() = default;
+        iterator(const registry* reg, const inner_iterator& curr, const inner_iterator& end)
+            : d_reg(reg)
+            , d_curr(curr)
+            , d_end(end)
+        {}
 
-            apx::entity operator*() const { return d_reg->from_index(d_iter->first); }
-            view_iterator& operator++() {
-                ++d_iter;
-                if constexpr (sizeof...(Ts) > 0) {
-                    while (valid() && !d_reg->has_all<Ts...>(**this)) { ++d_iter; }
-                }
-                return *this;
+        apx::entity operator*() const { return d_reg->from_index(d_curr->first); }
+        iterator& operator++() {
+            ++d_curr;
+            if constexpr (sizeof...(Ts) > 0) {
+                while (valid() && !d_reg->has_all<Ts...>(**this)) { ++d_curr; }
             }
-            bool valid() const { return d_iter != d_reg->get_comps<T>().cend(); }
-            operator bool() const { return valid(); }
-            bool operator==(const view_iterator& other) { return d_iter == other.d_iter; }
-            bool operator!=(const view_iterator& other) { return !(*this == other); }
-        };
+            return *this;
+        }
+        bool valid() const { return d_curr != d_end; }
+        operator bool() const { return valid(); }
+        bool operator==(const iterator& other) const { return d_curr == other.d_curr && d_end == other.d_end; }
 
-        view_iterator begin() { return {d_reg, d_reg->get_comps<T>().cbegin()}; }
-        view_iterator end() { return {d_reg, d_reg->get_comps<T>().cend()}; }
-        view_iterator cbegin() { return {d_reg, d_reg->get_comps<T>().cbegin()}; }
-        view_iterator cend() { return {d_reg, d_reg->get_comps<T>().cend()}; }
+        iterator begin() { return *this; }
+        iterator end() { return iterator(d_reg, d_end, d_end); }
+        iterator cbegin() { return begin(); }
+        iterator cend() { return end(); }
 
         void each(const std::function<void(apx::entity)>& cb) {
             for (auto entity : *this) {
@@ -509,15 +514,15 @@ public:
         return d_entities[index];
     }
 
-    [[nodiscard]] view_t<> all() const noexcept
+    [[nodiscard]] iterator<> all() const noexcept
     {
-        return view_t<>{this};
+        return iterator<>{this};
     }
 
     template <typename... Ts>
-    [[nodiscard]] view_t<Ts...> view() const noexcept
+    [[nodiscard]] iterator<Ts...> view() const noexcept
     {
-        return view_t<Ts...>{this};
+        return iterator<Ts...>{this};
     }
 
     template <typename... Ts>
