@@ -72,6 +72,8 @@
         "iomanip": "cpp",
         "variant": "cpp",
         "format": "cpp",
-        "forward_list": "cpp"
+        "forward_list": "cpp",
+        "charconv": "cpp",
+        "optional": "cpp"
     },
 }

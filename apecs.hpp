@@ -44,8 +44,33 @@ public:
     using packed_type = std::vector<std::pair<index_type, value_type>>;
     using sparse_type = std::vector<index_type>;
 
-    using iterator = typename packed_type::iterator;
-    using const_iterator = typename packed_type::const_iterator;
+    class iterator
+    {
+        packed_type::iterator d_curr;
+    public:
+        iterator(packed_type::iterator curr) : d_curr(curr) {}
+        value_type& operator*() { return d_curr->second; }
+        value_type* operator->() { return &d_curr->second; }
+        iterator& operator++() { ++d_curr; return *this; }
+        index_type index() const { return d_curr->first; }
+        bool operator==(const iterator& other) const { return d_curr == other.d_curr; }
+        bool operator!=(const iterator& other) const { return !(*this == other); }
+        friend class const_iterator;
+    };
+
+    class const_iterator
+    {
+        packed_type::const_iterator d_curr;
+    public:
+        const_iterator(packed_type::const_iterator curr) : d_curr(curr) {}
+        const_iterator(const iterator& iter) : d_curr(iter.d_curr) {}
+        const value_type& operator*() const { return d_curr->second; }
+        const value_type* operator->() { return &d_curr->second; }
+        const_iterator& operator++() { ++d_curr; return *this; }
+        index_type index() const { return d_curr->first; }
+        bool operator==(const const_iterator& other) const { return d_curr == other.d_curr; }
+        bool operator!=(const const_iterator& other) const { return !(*this == other); }
+    };
 
 private:
     static_assert(std::is_integral<index_type>());
@@ -159,12 +184,12 @@ public:
         return d_packed[d_sparse[index]].second;
     }
 
-    auto begin() noexcept { return d_packed.begin(); }
-    auto end() noexcept { return d_packed.end(); }
-    auto begin() const noexcept { return d_packed.begin(); }
-    auto end() const noexcept { return d_packed.end(); }
-    auto cbegin() const noexcept { return d_packed.cbegin(); }
-    auto cend() const noexcept { return d_packed.cend(); }
+    iterator begin() noexcept { return {d_packed.begin()}; }
+    iterator end() noexcept { return {d_packed.end()}; }
+    const_iterator begin() const noexcept { return {d_packed.cbegin()}; }
+    const_iterator end() const noexcept { return {d_packed.cend()}; }
+    const_iterator cbegin() const noexcept { return {d_packed.cbegin()}; }
+    const_iterator cend() const noexcept { return {d_packed.cend()}; }
 };
 
 enum class entity : std::uint64_t {};
@@ -229,7 +254,7 @@ public:
             , d_end(reg->d_entities.cend())
         {}
 
-        apx::entity operator*() const { return d_curr->second; }
+        apx::entity operator*() const { return *d_curr; }
         iterator& operator++() { ++d_curr; return *this; }
         bool valid() const { return d_curr != d_end; }
         operator bool() const { return valid(); }
@@ -265,7 +290,7 @@ public:
             , d_end(reg->get_comps<T>().cend())
         {}
 
-        apx::entity operator*() const { return d_reg->from_index(d_curr->first); }
+        apx::entity operator*() const { return d_reg->from_index(d_curr.index()); }
         iterator& operator++() {
             ++d_curr;
             if constexpr (sizeof...(Ts) > 0) {
@@ -382,7 +407,7 @@ public:
 
     void clear()
     {
-        for (auto [index, entity] : d_entities) {
+        for (auto entity : d_entities) {
             remove_all_components(entity);
         }
         d_entities.clear();
