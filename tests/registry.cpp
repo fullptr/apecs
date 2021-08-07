@@ -189,25 +189,6 @@ TEST(registry_view, view_for_loop_multi)
     ASSERT_EQ(count, 2);
 }
 
-TEST(registry_view, view_callback)
-{
-    apx::registry<foo, bar> reg;
-
-    auto e1 = reg.create();
-    reg.emplace<foo>(e1);
-    reg.emplace<bar>(e1);
-
-    auto e2 = reg.create();
-    reg.emplace<bar>(e2);
-
-    std::size_t count = 0;
-    auto view = reg.view<foo>();
-    view.each([&](apx::entity) {
-        ++count;
-    });
-    ASSERT_EQ(count, 1);
-}
-
 TEST(registry_all, all_for_loop)
 {
     apx::registry<foo, bar> reg;
@@ -223,24 +204,6 @@ TEST(registry_all, all_for_loop)
     for (auto entity : reg.all()) {
         ++count;
     }
-    ASSERT_EQ(count, 2);
-}
-
-TEST(registry_all, all_callback)
-{
-    apx::registry<foo, bar> reg;
-
-    auto e1 = reg.create();
-    reg.emplace<foo>(e1);
-    reg.emplace<bar>(e1);
-
-    auto e2 = reg.create();
-    reg.emplace<bar>(e2);
-
-    std::size_t count = 0;
-    reg.all().each([&](apx::entity) {
-        ++count;
-    });
     ASSERT_EQ(count, 2);
 }
 
@@ -277,4 +240,27 @@ TEST(registry, test_add)
         reg.add(e, foo{});
         ASSERT_TRUE(reg.has<foo>(e));
     }
+}
+
+TEST(registry, multi_destroy_vector)
+{
+    apx::registry<foo> reg;
+    auto e1 = reg.create();
+    auto e2 = reg.create();
+    auto e3 = reg.create();
+    ASSERT_EQ(reg.size(), 3);
+
+    std::vector v{e1, e2, e3};
+    reg.destroy(v);
+}
+
+TEST(registry, multi_destroy_initializer_list)
+{
+    apx::registry<foo> reg;
+    auto e1 = reg.create();
+    auto e2 = reg.create();
+    auto e3 = reg.create();
+    ASSERT_EQ(reg.size(), 3);
+
+    reg.destroy({e1, e2, e3});
 }

@@ -1,10 +1,13 @@
 #ifndef APECS_HPP_
 #define APECS_HPP_
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <initializer_list>
+#include <ranges>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -32,6 +35,12 @@ template <typename T> struct tag
     static T type(); // Not implmented, to be used with decltype
 };
 
+template <typename... Ts>
+struct get_first;
+
+template <typename T, typename... Ts>
+struct get_first<T, Ts...> { using type = T; };
+
 }
 
 template <typename T>
@@ -43,34 +52,6 @@ public:
 
     using packed_type = std::vector<std::pair<index_type, value_type>>;
     using sparse_type = std::vector<index_type>;
-
-    class iterator
-    {
-        packed_type::iterator d_curr;
-    public:
-        iterator(packed_type::iterator curr) : d_curr(curr) {}
-        value_type& operator*() { return d_curr->second; }
-        value_type* operator->() { return &d_curr->second; }
-        iterator& operator++() { ++d_curr; return *this; }
-        index_type index() const { return d_curr->first; }
-        bool operator==(const iterator& other) const { return d_curr == other.d_curr; }
-        bool operator!=(const iterator& other) const { return !(*this == other); }
-        friend class const_iterator;
-    };
-
-    class const_iterator
-    {
-        packed_type::const_iterator d_curr;
-    public:
-        const_iterator(packed_type::const_iterator curr) : d_curr(curr) {}
-        const_iterator(const iterator& iter) : d_curr(iter.d_curr) {}
-        const value_type& operator*() const { return d_curr->second; }
-        const value_type* operator->() { return &d_curr->second; }
-        const_iterator& operator++() { ++d_curr; return *this; }
-        index_type index() const { return d_curr->first; }
-        bool operator==(const const_iterator& other) const { return d_curr == other.d_curr; }
-        bool operator!=(const const_iterator& other) const { return !(*this == other); }
-    };
 
 private:
     static_assert(std::is_integral<index_type>());
@@ -184,12 +165,19 @@ public:
         return d_packed[d_sparse[index]].second;
     }
 
-    iterator begin() noexcept { return {d_packed.begin()}; }
-    iterator end() noexcept { return {d_packed.end()}; }
-    const_iterator begin() const noexcept { return {d_packed.cbegin()}; }
-    const_iterator end() const noexcept { return {d_packed.cend()}; }
-    const_iterator cbegin() const noexcept { return {d_packed.cbegin()}; }
-    const_iterator cend() const noexcept { return {d_packed.cend()}; }
+    [[nodiscard]] auto each() noexcept
+    {
+        return d_packed | std::views::transform([](auto& element) {
+            return std::make_pair(std::cref(element.first), std::ref(element.second));
+        });
+    }
+
+    [[nodiscard]] auto each() const noexcept
+    {
+        return d_packed | std::views::transform([](const auto& element) {
+            return std::make_pair(std::cref(element.first), std::cref(element.second));
+        });
+    }
 };
 
 enum class entity : std::uint64_t {};
@@ -232,90 +220,6 @@ public:
     inline static constexpr std::tuple<apx::meta::tag<Comps>...> tags{};
 
     using handle_type = apx::handle<Comps...>;
-
-    class iterator_sentinel {};
-
-    template <typename... Ts>
-    class iterator;
-
-    template <>
-    class iterator<>
-    {
-    public:
-        using inner_iterator = typename apx::sparse_set<apx::entity>::const_iterator;
-
-    private:
-        inner_iterator d_curr;
-        inner_iterator d_end;
-
-    public:
-        iterator(const registry* reg)
-            : d_curr(reg->d_entities.cbegin())
-            , d_end(reg->d_entities.cend())
-        {}
-
-        apx::entity operator*() const { return *d_curr; }
-        iterator& operator++() { ++d_curr; return *this; }
-        bool valid() const { return d_curr != d_end; }
-        operator bool() const { return valid(); }
-        bool operator==(iterator_sentinel) { return !valid(); }
-
-        iterator begin() { return *this; }
-        iterator_sentinel end() { return {}; }
-        iterator cbegin() { return begin(); }
-        iterator_sentinel cend() { return {}; }
-
-        void each(const std::function<void(apx::entity)>& cb) {
-            for (auto entity : *this) {
-                cb(entity);
-            }
-        }
-    };
-
-    template <typename T, typename... Ts>
-    class iterator<T, Ts...>
-    {
-    public:
-        using inner_iterator = typename apx::sparse_set<T>::const_iterator;
-
-    private:
-        const registry* d_reg;
-        inner_iterator d_curr;
-        inner_iterator d_end;
-
-    public:
-        iterator(const registry* reg)
-            : d_reg(reg)
-            , d_curr(reg->get_comps<T>().cbegin())
-            , d_end(reg->get_comps<T>().cend())
-        {}
-
-        apx::entity operator*() const { return d_reg->from_index(d_curr.index()); }
-        iterator& operator++() {
-            ++d_curr;
-            if constexpr (sizeof...(Ts) > 0) {
-                while (valid() && !d_reg->has_all<Ts...>(**this)) { ++d_curr; }
-            }
-            return *this;
-        }
-        bool valid() const { return d_curr != d_end; }
-        operator bool() const { return valid(); }
-        bool operator==(iterator_sentinel) { return !valid(); }
-
-        iterator begin() { return *this; }
-        iterator_sentinel end() { return {}; }
-        iterator cbegin() { return begin(); }
-        iterator_sentinel cend() { return {}; }
-
-        void each(const std::function<void(apx::entity)>& cb) {
-            for (auto entity : *this) {
-                cb(entity);
-            }
-        }
-    };
-
-    template <typename ...Comps>
-    using const_iterator = iterator<Comps...>;
 
 private:
     using tuple_type = std::tuple<apx::sparse_set<Comps>...>;
@@ -400,6 +304,16 @@ public:
         d_entities.erase(apx::to_index(entity));
     }
 
+    void destroy(const std::span<const apx::entity> entities)
+    {
+        std::ranges::for_each(entities, [&](auto e) { destroy(e); });
+    }
+
+    void destroy(const std::initializer_list<const apx::entity> entities)
+    {
+        std::ranges::for_each(entities, [&](auto e) { destroy(e); });
+    }
+
     [[nodiscard]] std::size_t size() const noexcept
     {
         return d_entities.size();
@@ -407,7 +321,7 @@ public:
 
     void clear()
     {
-        for (auto entity : d_entities) {
+        for (auto [index, entity] : d_entities.each()) {
             remove_all_components(entity);
         }
         d_entities.clear();
@@ -528,40 +442,49 @@ public:
         return has<Comp>(entity) ? &get<Comp>(entity) : nullptr;
     }
 
-    apx::entity from_index(apx::index_t index) const noexcept
+    apx::entity from_index(std::size_t index) const noexcept
     {
         return d_entities[index];
     }
 
-    [[nodiscard]] iterator<> all() const noexcept
+    [[nodiscard]] auto all() const noexcept
     {
-        return iterator<>{this};
+        return d_entities.each() | std::views::values;
+    }
+
+    template <typename... Comps>
+    [[nodiscard]] auto view() const noexcept
+    {
+        if constexpr (sizeof...(Comps) == 0) {
+            return all();
+        } else {
+            using Comp = typename apx::meta::get_first<Comps...>::type;
+            const auto entity_view = get_comps<Comp>().each() 
+                | std::views::keys
+                | std::views::transform([&](auto index) { return from_index(index); });
+
+            if constexpr (sizeof...(Comps) > 1) {
+                return entity_view | std::views::filter([&](auto entity) {
+                    return has_all<Comps...>(entity);
+                });
+            } else {
+                return entity_view;
+            }
+        }
     }
 
     template <typename... Ts>
-    [[nodiscard]] iterator<Ts...> view() const noexcept
-    {
-        return iterator<Ts...>{this};
-    }
-
-    template <typename... Ts>
-    void erase_if(const predicate_t& cb) {
-        std::vector<apx::entity> to_delete;
-        for (auto entity : view<Ts...>()) {
-            if (cb(entity)) { to_delete.push_back(entity); }
-        }
-        for (auto entity : to_delete) {
-            destroy(entity);
-        }
+    void destroy_if(const predicate_t& cb) noexcept {
+        auto v = view<Ts...>() | std::views::filter(cb);
+        std::vector<apx::entity> to_delete{v.begin(), v.end()};
+        destroy(to_delete);
     }
 
     template <typename... Comps>
     [[nodiscard]] apx::entity find(const predicate_t& predicate = [](apx::entity) { return true; }) const noexcept
     {
-        for (auto entity : view<Comps...>()) {
-            if (predicate(entity)) {
-                return entity;
-            }
+        if (auto result = std::ranges::find_if(view<Comps...>(), predicate)) {
+            return *result;
         }
         return apx::null;
     }
