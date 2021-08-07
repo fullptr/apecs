@@ -483,7 +483,8 @@ public:
     template <typename... Comps>
     [[nodiscard]] apx::entity find(const predicate_t& predicate = [](apx::entity) { return true; }) const noexcept
     {
-        if (auto result = std::ranges::find_if(view<Comps...>(), predicate)) {
+        auto v = view<Comps...>();
+        if (auto result = std::ranges::find_if(v, predicate); result != v.end()) {
             return *result;
         }
         return apx::null;
