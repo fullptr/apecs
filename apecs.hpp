@@ -166,14 +166,14 @@ public:
     [[nodiscard]] auto each() noexcept
     {
         return d_packed | std::views::transform([](auto& element) {
-            return std::make_pair(element.first, std::ref(element.second));
+            return std::make_pair(std::cref(element.first), std::ref(element.second));
         });
     }
 
     [[nodiscard]] auto each() const noexcept
     {
         return d_packed | std::views::transform([](const auto& element) {
-            return std::make_pair(element.first, std::cref(element.second));
+            return std::make_pair(std::cref(element.first), std::cref(element.second));
         });
     }
 };
@@ -430,17 +430,14 @@ public:
         return has<Comp>(entity) ? &get<Comp>(entity) : nullptr;
     }
 
-    apx::entity from_index(apx::index_t index) const noexcept
+    apx::entity from_index(std::size_t index) const noexcept
     {
         return d_entities[index];
     }
 
     [[nodiscard]] auto all() const noexcept
     {
-        return d_entities.each() | std::views::transform([](const auto& element) {
-            const auto& [index, entity] = element;
-            return entity;
-        });
+        return d_entities.each() | std::views::values;
     }
 
     template <typename... Comps>
@@ -450,13 +447,14 @@ public:
             return all();
         } else {
             using Comp = typename apx::meta::get_first<Comps...>::type;
-            const auto entity_view = get_comps<Comp>().each() | std::views::transform([&](const auto& element) {
-                const auto& [index, component] = element;
-                return from_index((std::uint32_t)index);
-            });
+            const auto entity_view = get_comps<Comp>().each() 
+                | std::views::keys
+                | std::views::transform([&](auto index) { return from_index(index); });
 
             if constexpr (sizeof...(Comps) > 1) {
-                return entity_view | std::views::filter([&](auto entity) { return has_all<Comps...>(entity); });
+                return entity_view | std::views::filter([&](auto entity) {
+                    return has_all<Comps...>(entity);
+                });
             } else {
                 return entity_view;
             }
