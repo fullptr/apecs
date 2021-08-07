@@ -5,9 +5,14 @@ The API is very similar to EnTT, with the main difference being that all compone
 
 Components are stored contiguously in `apx::sparse_set` objects, which are essentially a pair of `std::vector`s, one sparse and one packed, which allows for fast iteration over components. When deleting components, these sets may reorder themselves to maintain tight packing; as such, sorting isn't currently possibly, but also shouldn't be desired.
 
-This library also includes some very basic meta-programming functionality, found in the `apx::meta` namespace, as well as `apx::generator<T>`, a generator built using the C++20 coroutine API.
+This library also includes some very basic meta-programming functionality, found in the `apx::meta` namespace.
 
-This project was just a fun little project to allow me to learn more about ECSs and how to implement one, as well as metaprogramming and C++20 features. If you are building your own project and need an ECS, I would recommend you build your own or use EnTT instead.
+This project was just a fun little project to allow me to learn more about ECSs and how to implement one, as well as metaprogramming and C++20 features. If you are building your own project and need an ECS, I would recommend you build your own or use EnTT instead. This was originally
+implemented using coroutines, however the allocations caused too much overhead, so I replaced them
+with an iterator implemenetation, before realising that coroutines were the wrong tool to begin
+with, and the correct tool was C++20 ranges. Ultimately the coroutine implementation was just
+transforming and filtering vectors of entities and components, which is now expressed directly
+in the code and no longer uses superfluous dynamic memory allocations.
 
 ## The Registry and Entities
 In `apecs`, an entity, `apx::entity`, is simply a 64-bit unsigned integer. All components attached to this entity are stored and accessed via the `apx::registry` class. To start, you can default construct a registry, with all of the component types declated up front
@@ -37,6 +42,7 @@ registry.emplace<transform>(e, 0.0, 0.0, 0.0);
 Removing is just as easy
 ```cpp
 registry.remove<transform>(e);
+registry.remove_all_components(e);
 ```
 Components can be accessed by reference for modification, and entities may be queried to see if they contain the given component type
 ```cpp
@@ -51,9 +57,18 @@ if (auto* t = registry.get_if<transform>(e)) {
   update_transform(*t);
 }
 ```
+There are multiple ways to query about what components an entity has:
+```cpp
+registry.has_all<transform, mesh>(e);
+registry.has_any<box_collider, sphere_collider, capsule_collider>(e);
+```
 Deleting an entity is also straightforward
 ```cpp
 registry.destroy(e);
+```
+You can also destroy any span of entities in a single call:
+```cpp
+registry.destroy({e1, e2, e3, s4});
 ```
 Given that an `apx::entity` is just an identifier for an entity, it could be that an identifier
 is referring to an entity that has been destroyed. The registry provides a function to check this
@@ -70,7 +85,7 @@ registry.clear();
 ```
 
 ## Iteration
-Iteration is implmented using C++20 coroutines. There are two main ways of doing interation; iterating over all entities, and iterating over a *view*; a subset of the entities containing only a specific set of components.
+Iteration is implmented using C++20 ranges. There are two main ways of doing interation; iterating over all entities, and iterating over a *view*; a subset of the entities containing only a specific set of components.
 
 Iterating over all
 ```cpp
@@ -86,24 +101,25 @@ for (auto entity : registry.view<transform, mesh>()) {
 ```
 When iterating over all entities, the iteration is done over the internal entity sparse set. When iterating over a view, we iterate over the sparse set of the first specified component, which can result in a much faster loop. Because of this, if you know that one of the component types is rarer than the others, put that as the first component.
 
-If you prefer a more functional approach, `all` and `view` may also accept lambdas:
+## Other Functionality
+The registry also contains some other useful functions for common uses of views:
+
+### Finding an Entity via a Predicate
+You can look up an entity that satisfies a callback via
 ```cpp
-registry.all([](auto entity) {
-  ...
-});
+registry.find([](auto entity) -> bool { ... });
 ```
-and
+By default this loops over all entities and returns the first one satisfying the given predicate,  returning `apx::null` if there is no such entity. This can be optimized by looping over a view if desired:
 ```cpp
-registry.view<transform, mesh>(auto entity) {
-  ...
-});
+registry.find<transform>([](auto entity) -> bool { ... });
 ```
-There is also an "extended" version of `view` to access the components more easily:
+
+### Deleting Entities via a Predicate
+Deleting entities in a loop is undefined behaviour as you could be modifying the container you are iterating over. To delete a set of entities safely 
 ```cpp
-registry.view<transform, mesh>(auto entity, const transform& t, const mesh& m) {
-  ...
-});
+registry.destroy_if([](auto entity) -> bool { ... });
 ```
+This can also take template parameters to do the loop over a view as well.
 
 ## Notification System
 `apecs`, like `EnTT`, is mainly just a data structure for storing components, and does not have any built in features specifically for systems; they are left up to the user. However, `apecs` does also allow for registering callbacks so that systems can be notified whenever a component is created or destroyed. Callbacks have the signature `void(apx::entity, const Component&)`. To be notified of a component being added, use `on_add`
@@ -172,5 +188,4 @@ apx::meta::for_each(registry.tags, []<typename T>(apx::meta::tag<T>) {
 
 ## Upcoming Features
 - The ability to deregister callbacks.
-- A slower way of iterating components that allows for deleting and inserting new components. See `apx::sparse_set::safe` vs `apx::sparse_set::fast` for more info.
 - Potentially `apx::handle` based versions for `registry::all` and `registry::view`.

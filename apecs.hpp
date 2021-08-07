@@ -6,8 +6,9 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
-#include <tuple>
+#include <initializer_list>
 #include <ranges>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -303,6 +304,16 @@ public:
         d_entities.erase(apx::to_index(entity));
     }
 
+    void destroy(const std::span<const apx::entity> entities)
+    {
+        std::ranges::for_each(entities, [&](auto e) { destroy(e); });
+    }
+
+    void destroy(const std::initializer_list<const apx::entity> entities)
+    {
+        std::ranges::for_each(entities, [&](auto e) { destroy(e); });
+    }
+
     [[nodiscard]] std::size_t size() const noexcept
     {
         return d_entities.size();
@@ -463,10 +474,10 @@ public:
     }
 
     template <typename... Ts>
-    void erase_if(const predicate_t& cb) noexcept {
+    void destroy_if(const predicate_t& cb) noexcept {
         auto v = view<Ts...>() | std::views::filter(cb);
         std::vector<apx::entity> to_delete{v.begin(), v.end()};
-        std::ranges::for_each(to_delete, [&](auto entity) { destroy(entity); });
+        destroy(to_delete);
     }
 
     template <typename... Comps>

@@ -49,7 +49,7 @@ TEST(handle, test_add)
     }
 }
 
-TEST(handle, test_erase_if)
+TEST(handle, test_destroy_if)
 // Test removing all but the first element.
 {
     apx::registry<foo> reg;
@@ -59,7 +59,7 @@ TEST(handle, test_erase_if)
     (void)reg.create();
 
     bool passed_first = false;
-    reg.erase_if([&](apx::entity e) {
+    reg.destroy_if([&](apx::entity e) {
         if (!passed_first) {
             passed_first = true;
             return false;

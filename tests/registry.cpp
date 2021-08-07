@@ -241,3 +241,26 @@ TEST(registry, test_add)
         ASSERT_TRUE(reg.has<foo>(e));
     }
 }
+
+TEST(registry, multi_destroy_vector)
+{
+    apx::registry<foo> reg;
+    auto e1 = reg.create();
+    auto e2 = reg.create();
+    auto e3 = reg.create();
+    ASSERT_EQ(reg.size(), 3);
+
+    std::vector v{e1, e2, e3};
+    reg.destroy(v);
+}
+
+TEST(registry, multi_destroy_initializer_list)
+{
+    apx::registry<foo> reg;
+    auto e1 = reg.create();
+    auto e2 = reg.create();
+    auto e3 = reg.create();
+    ASSERT_EQ(reg.size(), 3);
+
+    reg.destroy({e1, e2, e3});
+}
