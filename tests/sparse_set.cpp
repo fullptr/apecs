@@ -26,8 +26,9 @@ TEST(sparse_set, iterate_with_one_element_and_index_check)
     apx::sparse_set<int> set;
     set.insert(2, 5);
 
-    for (auto it = set.begin(); it != set.end(); ++it) {
-        ASSERT_EQ(*it, 5);
-        ASSERT_EQ(it.index(), 2);
+    for (const auto& [index, value] : set.each()) {
+        ASSERT_EQ(index, 2);
+        ASSERT_EQ(value, 5);
+
     }
 }

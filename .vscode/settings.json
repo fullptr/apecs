@@ -74,6 +74,8 @@
         "format": "cpp",
         "forward_list": "cpp",
         "charconv": "cpp",
-        "optional": "cpp"
+        "optional": "cpp",
+        "ranges": "cpp",
+        "span": "cpp"
     },
 }
