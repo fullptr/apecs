@@ -1,6 +1,7 @@
 #ifndef APECS_HPP_
 #define APECS_HPP_
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <deque>
@@ -463,22 +464,16 @@ public:
 
     template <typename... Ts>
     void erase_if(const predicate_t& cb) noexcept {
-        std::vector<apx::entity> to_delete;
-        for (auto entity : view<Ts...>()) {
-            if (cb(entity)) { to_delete.push_back(entity); }
-        }
-        for (auto entity : to_delete) {
-            destroy(entity);
-        }
+        auto v = view<Ts...>() | std::views::filter(cb);
+        std::vector<apx::entity> to_delete{v.begin(), v.end()};
+        std::ranges::for_each(to_delete, [&](auto entity) { destroy(entity); });
     }
 
     template <typename... Comps>
     [[nodiscard]] apx::entity find(const predicate_t& predicate = [](apx::entity) { return true; }) const noexcept
     {
-        for (auto entity : view<Comps...>()) {
-            if (predicate(entity)) {
-                return entity;
-            }
+        if (auto result = std::ranges::find_if(view<Comps...>(), predicate)) {
+            return *result;
         }
         return apx::null;
     }
