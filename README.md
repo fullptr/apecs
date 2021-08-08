@@ -51,17 +51,24 @@ if (registry.has<transform>(e)) {
   update_transform(t);
 }
 ```
-There is also the noexcept version `get_if` which returns a pointer to the component, and `nullptr` if it does not exist
+There are varidic versions of the above in the form of `*_all`
+```cpp
+if (registry.has_all<transform, mesh>(e)) {
+  auto [t, m] = registry.get_all<transform, mesh>(e);
+  update_transform(t);
+}
+```
+If you want to know if an entity has *at least one* of a set of components:
+```cpp
+registry.has_any<box_collider, sphere_collider, capsule_collider>(e);
+```
+There is also a noexcept version of `get` called `get_if` which returns a pointer to the component, and `nullptr` if it does not exist
 ```cpp
 if (auto* t = registry.get_if<transform>(e)) {
   update_transform(*t);
 }
 ```
-There are multiple ways to query about what components an entity has:
-```cpp
-registry.has_all<transform, mesh>(e);
-registry.has_any<box_collider, sphere_collider, capsule_collider>(e);
-```
+
 Deleting an entity is also straightforward
 ```cpp
 registry.destroy(e);
@@ -100,6 +107,27 @@ for (auto entity : registry.view<transform, mesh>()) {
 }
 ```
 When iterating over all entities, the iteration is done over the internal entity sparse set. When iterating over a view, we iterate over the sparse set of the first specified component, which can result in a much faster loop. Because of this, if you know that one of the component types is rarer than the others, put that as the first component.
+
+It is common that the current entity is not actually of direct interest, and is only used to fetch components. For this, there is `view_get` which instead returns a tuple of components instead of the entity id:
+```cpp
+for (auto [t, m] : registry.view_get<transform, mesh>()) {
+  ...
+}
+
+// The above is clearer than the more verbose and error prone:
+for (auto entity : registry.get<transform, mesh>()) {
+  auto& t = registry.get<transform>(entity);
+  auto& m = registry.get<mesh>(entity);
+  ...
+}
+```
+Note that you also don't need to care about constness in the `view_get` case. If the registry is not const, the values in the tuple will be references, and if you are accessing through a `const&` registry, the components will also be `const&`. If you dont have a `const&` to the registry, you can enforce it by creating one and viewing through that:
+```cpp
+const auto& cregistry = registry;
+for (auto [t, m] : cregistry.view_get<transform, mesh>()) {
+  // t and m are const& in this context
+}
+```
 
 ## Other Functionality
 The registry also contains some other useful functions for common uses of views:
@@ -187,5 +215,4 @@ apx::meta::for_each(registry.tags, []<typename T>(apx::meta::tag<T>) {
 ```
 
 ## Upcoming Features
-- The ability to deregister callbacks.
-- Potentially `apx::handle` based versions for `registry::all` and `registry::view`.
+- The ability to specify `const` in the getters, such as `registry.get<const transform, mesh>(entity)`.
