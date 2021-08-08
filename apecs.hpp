@@ -402,7 +402,6 @@ public:
     template <typename... Comps>
     [[nodiscard]] bool has_all(const apx::entity entity) const noexcept
     {
-        static_assert((apx::meta::tuple_contains_v<apx::sparse_set<Comps>, tuple_type> && ...));
         assert(valid(entity));
         return (has<Comps>(entity) && ...);
     }
@@ -410,7 +409,6 @@ public:
     template <typename... Comps>
     [[nodiscard]] bool has_any(const apx::entity entity) const noexcept
     {
-        static_assert((apx::meta::tuple_contains_v<apx::sparse_set<Comps>, tuple_type> && ...));
         assert(valid(entity));
         return (has<Comps>(entity) || ...);
     }
@@ -433,6 +431,20 @@ public:
 
         auto& comp_set = get_comps<Comp>();
         return comp_set[apx::to_index(entity)];
+    }
+
+    template <typename... Comps>
+    [[nodiscard]] auto get_all(const apx::entity entity) noexcept
+    {
+        assert(has_all<Comps...>(entity));
+        return std::make_tuple(std::ref(get<Comps>(entity))...);
+    }
+
+    template <typename... Comps>
+    [[nodiscard]] auto get_all(const apx::entity entity) const noexcept
+    {
+        assert(has_all<Comps...>(entity));
+        return std::make_tuple(std::cref(get<Comps>(entity))...);
     }
 
     template <typename Comp>
@@ -471,6 +483,20 @@ public:
                 return entity_view;
             }
         }
+    }
+
+    template <typename... Comps> [[nodiscard]] auto view_get() noexcept
+    {
+        return view<Comps...>() | std::views::transform([&](auto entity) {
+            return get_all<Comps...>(entity);
+        });
+    }
+
+    template <typename... Comps> [[nodiscard]] auto view_get() const noexcept
+    {
+        return view<Comps...>() | std::views::transform([&](auto entity) {
+            return get_all<Comps...>(entity);
+        });
     }
 
     template <typename... Ts>
