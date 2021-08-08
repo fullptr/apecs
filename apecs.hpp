@@ -8,6 +8,7 @@
 #include <functional>
 #include <initializer_list>
 #include <ranges>
+#include <span>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -30,10 +31,7 @@ constexpr void for_each(Tuple&& tuple, F&& f)
     std::apply([&](auto&&... x) { (f(x), ...); }, tuple);
 }
 
-template <typename T> struct tag
-{
-    static T type(); // Not implmented, to be used with decltype
-};
+template <typename T> struct tag {};
 
 template <typename... Ts>
 struct get_first;
@@ -205,9 +203,6 @@ inline apx::index_t to_index(const apx::entity entity)
 }
 
 template <typename... Comps>
-class handle;
-
-template <typename... Comps>
 class registry
 {
 public:
@@ -219,8 +214,6 @@ public:
     // A tuple of tag types for metaprogramming purposes
     inline static constexpr std::tuple<apx::meta::tag<Comps>...> tags{};
 
-    using handle_type = apx::handle<Comps...>;
-
 private:
     using tuple_type = std::tuple<apx::sparse_set<Comps>...>;
 
@@ -229,16 +222,10 @@ private:
 
     tuple_type d_components;
 
-    std::tuple<std::vector<callback_t<Comps>>...> d_on_add;
-    std::tuple<std::vector<callback_t<Comps>>...> d_on_remove;
-
     template <typename Comp>
     void remove(const apx::entity entity, apx::sparse_set<Comp>& component_set)
     {
         if (has<Comp>(entity)) {
-            for (auto& cb : std::get<std::vector<callback_t<Comp>>>(d_on_remove)) {
-                cb(entity, get<Comp>(entity));
-            }
             component_set.erase(apx::to_index(entity));
         }
     }
@@ -259,18 +246,6 @@ public:
     ~registry()
     {
         clear();
-    }
-
-    template <typename Comp>
-    void on_add(callback_t<Comp>&& callback)
-    {
-        std::get<std::vector<callback_t<Comp>>>(d_on_add).push_back(std::move(callback));
-    }
-
-    template <typename Comp>
-    void on_remove(callback_t<Comp>&& callback)
-    {
-        std::get<std::vector<callback_t<Comp>>>(d_on_remove).push_back(std::move(callback));
     }
 
     [[nodiscard]] apx::entity create()
@@ -321,9 +296,7 @@ public:
 
     void clear()
     {
-        for (auto [index, entity] : d_entities.each()) {
-            remove_all_components(entity);
-        }
+        d_components = {};
         d_entities.clear();
         d_pool.clear();
     }
@@ -337,9 +310,6 @@ public:
 
         auto& comp_set = get_comps<T>();
         auto& ret = comp_set.insert(apx::to_index(entity), component);
-        for (auto cb : std::get<std::vector<callback_t<T>>>(d_on_add)) {
-            cb(entity, ret);
-        }
         return ret;
     }
 
@@ -352,9 +322,6 @@ public:
 
         auto& comp_set = get_comps<T>();
         auto& ret = comp_set.insert(apx::to_index(entity), std::forward<Comp>(component));
-        for (auto cb : std::get<std::vector<callback_t<T>>>(d_on_add)) {
-            cb(entity, ret);
-        }
         return ret;
     }
 
@@ -366,9 +333,6 @@ public:
 
         auto& comp_set = get_comps<Comp>();
         auto& ret = comp_set.emplace(apx::to_index(entity), std::forward<Args>(args)...);
-        for (auto cb : std::get<std::vector<callback_t<Comp>>>(d_on_add)) {
-            cb(entity, ret);
-        }
         return ret;
     }
 
@@ -377,15 +341,15 @@ public:
     {
         static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
-
-        auto& comp_set = get_comps<Comp>();
-        return remove(entity, comp_set);
+        if (has<Comp>(entity)) {
+            get_comps<Comp>().erase(apx::to_index(entity));
+        }
     }
 
     void remove_all_components(apx::entity entity)
     {
-        apx::meta::for_each(d_components, [&](auto& comp_set) {
-            remove(entity, comp_set);
+        apx::meta::for_each(tags, [&] <typename T> (apx::meta::tag<T>) {
+            remove<T>(entity);
         });
     }
 
@@ -514,89 +478,6 @@ public:
             return *result;
         }
         return apx::null;
-    }
-};
-
-template <typename... Comps>
-class handle
-{
-    apx::registry<Comps...>* d_registry;
-    apx::entity              d_entity;
-
-public:
-    handle(apx::registry<Comps...>& r, const apx::entity e) : d_registry(&r), d_entity(e) {}
-    explicit constexpr handle() : d_registry(nullptr), d_entity(apx::null) {}
-
-    apx::entity entity() const { return d_entity; }
-
-    [[nodiscard]] bool valid() noexcept { return d_registry->valid(d_entity); }
-    void destroy() { d_registry->destroy(d_entity); }
-
-    template <typename Comp>
-    Comp& add(const Comp& component) { return d_registry->template add<Comp>(d_entity, component); }
-
-    template <typename Comp>
-    Comp& add(Comp&& component) { return d_registry->template add<Comp>(d_entity, std::forward<Comp>(component)); }
-
-    template <typename Comp, typename... Args>
-    Comp& emplace(Args&&... args) { return d_registry->template emplace<Comp>(d_entity, std::forward<Args>(args)...); }
-
-    template <typename Comp>
-    void remove() { d_registry->template remove<Comp>(d_entity); }
-
-    void remove_all_components() { d_registry->remove_all_components(d_entity); }
-
-    template <typename Comp>
-    [[nodiscard]] bool has() const noexcept { return d_registry->template has<Comp>(d_entity); }
-
-    template <typename... Comps>
-    [[nodiscard]] bool has_all() const noexcept { return d_registry->template has_all<Comps...>(d_entity); }
-
-    template <typename... Comps>
-    [[nodiscard]] bool has_any() const noexcept { return d_registry->template has_any<Comps...>(d_entity); }
-
-    template <typename Comp>
-    [[nodiscard]] Comp& get() noexcept { return d_registry->template get<Comp>(d_entity); }
-
-    template <typename Comp>
-    [[nodiscard]] const Comp& get() const noexcept { return d_registry->template get<Comp>(d_entity); }
-
-    template <typename Comp>
-    [[nodiscard]] Comp* get_if() noexcept { return d_registry->template get_if<Comp>(d_entity); }
-
-    apx::handle<Comps...>& operator=(const apx::handle<Comps...>& other) noexcept
-    {
-        d_registry = other.d_registry;
-        d_entity = other.d_entity;
-        return *this;
-    }
-    
-    [[nodiscard]] bool operator==(const apx::handle<Comps...>& other) const noexcept
-    {
-        return d_registry == other.d_registry && d_entity == other.d_entity;
-    }
-
-    [[nodiscard]] bool operator!=(const apx::handle<Comps...>& other) const noexcept { return !(*this == other); }
-};
-
-template <typename... Comps>
-inline apx::handle<Comps...> create_from(apx::registry<Comps...>& registry)
-{
-    return {registry, registry.create()};
-}
-
-template <typename... Comps>
-static constexpr apx::handle null_handle{};
-
-}
-
-namespace std {
-
-template <typename... Comps>
-struct hash<apx::handle<Comps...>>
-{
-    std::size_t operator()(const apx::handle<Comps...>& handle) const {
-        return std::hash<apx::entity>{}(handle.entity());
     }
 };
 
