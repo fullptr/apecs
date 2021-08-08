@@ -149,43 +149,6 @@ registry.destroy_if([](auto entity) -> bool { ... });
 ```
 This can also take template parameters to do the loop over a view as well.
 
-## Notification System
-`apecs`, like `EnTT`, is mainly just a data structure for storing components, and does not have any built in features specifically for systems; they are left up to the user. However, `apecs` does also allow for registering callbacks so that systems can be notified whenever a component is created or destroyed. Callbacks have the signature `void(apx::entity, const Component&)`. To be notified of a component being added, use `on_add`
-```cpp
-registry.on_add<transform>([&](apx::entity entity, const transform& component) {
-  ...
-});
-```
-`on_add` callbacks are invoked **after** the component has been added. Similarly for removing, use `on_remove`
-```cpp
-registry.on_remove<transform>([&](apx::entity entity, const transform& component) {
-  ...
-});
-```
-`on_remove` callbacks are invoked **before** the component has been removed. It is currently not possible to remove callbacks, but this may be added in the future.
-
-If a registry is cleared, all `on_remove` callbacks are invoked for each entity along the way.
-
-## Entity Handle
-To some, a call such as `registry.add<transform>(entity, t)` may feel unnatural and would prefer a more traditional object oriented interface such as `entity.add<transform>(t)`. This is provided via `apx::handle`, a thin wrapper around a registry pointer and an entity. Given a reigstry and an entity, a handle can be created easily
-```cpp
-apx::handle handle{&registry, entity};
-```
-To make your code prettier, a helper function is provided to create handles when creating a fresh entity
-```cpp
-apx::handle entity = apx::create_from(registry);
-```
-As stated, this is a simple wrapper and provides the whole interface for a single entity
-```cpp
-handle.valid();
-handle.destroy();
-
-handle.add<transform>(t);
-handle.has<transform>();
-handle.get<transform>();
-handle.remove<transform>();
-```
-
 ## Metaprogramming
 To implement many of these features, some metaprogramming techniques were required and are made available to users. First of all, `apx::tuple_contains` allows for checking at compile time if a given `std::tuple` type contains a specific type. This is used in the component getter/setter functions to give nicer compile errors if there is a type problem, but may be useful in other situations.
 ```cpp
