@@ -75,7 +75,7 @@ registry.destroy(e);
 ```
 You can also destroy any span of entities in a single call:
 ```cpp
-registry.destroy({e1, e2, e3, s4});
+registry.destroy({e1, e2, e3, e4});
 ```
 Given that an `apx::entity` is just an identifier for an entity, it could be that an identifier
 is referring to an entity that has been destroyed. The registry provides a function to check this
@@ -115,7 +115,7 @@ for (auto [t, m] : registry.view_get<transform, mesh>()) {
 }
 
 // The above is clearer than the more verbose and error prone:
-for (auto entity : registry.get<transform, mesh>()) {
+for (auto entity : registry.view<transform, mesh>()) {
   auto& t = registry.get<transform>(entity);
   auto& m = registry.get<mesh>(entity);
   ...
