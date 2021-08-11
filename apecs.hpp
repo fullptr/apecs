@@ -304,28 +304,25 @@ public:
     template <typename Comp>
     Comp& add(const apx::entity entity, const Comp& component)
     {
-        using T = std::remove_cvref_t<Comp>;
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<T>, tuple_type>);
+        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
-        return get_comps<T>().insert(apx::to_index(entity), std::forward<Comp>(component));
+        return get_comps<Comp>().insert(apx::to_index(entity), component);
     }
 
     template <typename Comp>
     Comp& add(const apx::entity entity, Comp&& component)
     {
-        using T = std::remove_cvref_t<Comp>;
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<T>, tuple_type>);
+        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
-        return get_comps<T>().insert(apx::to_index(entity), std::forward<Comp>(component));
+        return get_comps<Comp>().insert(apx::to_index(entity), std::forward<Comp>(component));
     }
 
     template <typename Comp, typename... Args>
     Comp& emplace(const apx::entity entity, Args&&... args)
     {
-        using T = std::remove_cvref_t<Comp>;
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<T>, tuple_type>);
+        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
         assert(valid(entity));
-        return get_comps<T>().emplace(apx::to_index(entity), std::forward<Args>(args)...);
+        return get_comps<Comp>().emplace(apx::to_index(entity), std::forward<Args>(args)...);
     }
 
     template <typename Comp>
