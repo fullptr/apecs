@@ -142,6 +142,16 @@ By default this loops over all entities and returns the first one satisfying the
 registry.find<transform>([](auto entity) -> bool { ... });
 ```
 
+### Copying Entities
+It might desirable to duplicate entities within a registry. More generally, given
+two different registries of the same templated type, it may also be useful to be
+able to copy an entity from one registry to another. For this, use `apx::copy`:
+```cpp
+template <typename... Comps>
+entity copy(entity entity, const registry<Comps...>& src, registry<Comps...>& dst);
+```
+The given entity must be a valid entity in the src registry.
+
 ### Deleting Entities via a Predicate
 Deleting entities in a loop is undefined behaviour as you could be modifying the container you are iterating over. To delete a set of entities safely 
 ```cpp
