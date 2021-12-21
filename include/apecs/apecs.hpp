@@ -464,6 +464,18 @@ public:
     }
 };
 
+template <typename... Comps>
+apx::entity copy(apx::entity entity, const apx::registry<Comps...>& src, apx::registry<Comps...>& dst)
+{
+    auto new_entity = dst.create();
+    apx::meta::for_each(apx::registry<Comps...>::tags, [&]<typename T>(apx::meta::tag<T>) {
+        if (src.has<T>(entity)) {
+            dst.add<T>(new_entity, src.get<T>(entity));
+        }
+    });
+    return new_entity;
+}
+
 }
 
 #endif // APECS_HPP_
