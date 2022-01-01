@@ -1,4 +1,4 @@
-#include "apecs.hpp"
+#include <apecs/apecs.hpp>
 #include <gtest/gtest.h>
 
 struct foo {
@@ -123,10 +123,13 @@ TEST(registry_all, all_for_loop)
 }
 
 TEST(registry, test_add)
-// registry::add was actually broken when trying to call with an lvalue reference, but no
-// other tests at the time tested this; they either used emplace passed an rvalue to add
-// which worked fine. This test makes sure add works as expected, and allow both explicit
-// typing and type deduction.
+// registry::add should work with explicitly writing the template type
+// as well as by type deduction. The case that was broken was lvalue ref
+// with the type deduced, as Comp would be deduced as T&. This was fixed
+// by using std::remove_cvref_t in the forward ref overload of registry::add.
+// The other add function does not need this as it takes an lvalue ref, and
+// the emplace/remove/get functions also dont need this since the type
+// must be specified explicitly.
 {
     apx::registry<foo> reg;
 
