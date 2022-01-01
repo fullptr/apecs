@@ -312,9 +312,10 @@ public:
     template <typename Comp>
     Comp& add(const apx::entity entity, Comp&& component)
     {
-        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<Comp>, tuple_type>);
+        using T = std::remove_cvref_t<Comp>;
+        static_assert(apx::meta::tuple_contains_v<apx::sparse_set<T>, tuple_type>);
         assert(valid(entity));
-        return get_comps<Comp>().insert(apx::to_index(entity), std::forward<Comp>(component));
+        return get_comps<T>().insert(apx::to_index(entity), std::forward<T>(component));
     }
 
     template <typename Comp, typename... Args>

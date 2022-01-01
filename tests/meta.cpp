@@ -1,4 +1,4 @@
-#include "apecs.hpp"
+#include <apecs/apecs.hpp>
 #include <gtest/gtest.h>
 #include <tuple>
 
